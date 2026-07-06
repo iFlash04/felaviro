@@ -1211,8 +1211,18 @@ with st.sidebar:
             st.caption("Введи точную сумму застейканных SKR для первого кошелька — множитель пересчитается, сохранится в .env и запустит полное обновление")
             default_stake = data[0].get("stake_skr", 0) if data else 0.0
             actual_val = st.number_input("SKR в стейкинге (01)", value=float(default_stake), step=1.0, key="cal_actual")
-            st.caption(f"Текущий множитель: {SKR_DIVISOR:,.0f}")
-            st.caption("☁️ Чтобы множитель работал на всех устройствах — добавь `skr_divisor = X` в Secrets на share.streamlit.io")
+            _skr_int = int(SKR_DIVISOR)
+            st.markdown(
+                f'<p style="font-size:0.85rem;color:#6b7280;margin-bottom:8px">'
+                f'Текущий множитель: '
+                f'<span onclick="navigator.clipboard.writeText(\'{_skr_int}\')" '
+                f'style="cursor:pointer;color:#3a9e91;font-weight:bold" '
+                f'title="Нажми чтобы скопировать">{_skr_int}</span>'
+                f' — <a href="https://share.streamlit.io/iFlash04/felaviro" '
+                f'style="color:#3a9e91" target="_blank">настроить Secrets</a>'
+                f'</p>',
+                unsafe_allow_html=True,
+            )
             if actual_val > 0:
                 new_div = raw_first / actual_val
                 cal_col1, cal_col2 = st.columns([1, 1])
