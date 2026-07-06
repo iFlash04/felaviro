@@ -1,0 +1,15 @@
+# Окружение (ключи, токены)
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+venv/
+
+# macOS
+.DS_Store
+
+# Кеш данных и настройки
+data/
