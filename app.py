@@ -1214,15 +1214,12 @@ with st.sidebar:
             _skr_int = int(SKR_DIVISOR)
             st.markdown(
                 f'<p style="font-size:0.85rem;color:#6b7280;margin-bottom:8px">'
-                f'Текущий множитель: '
-                f'<span onclick="navigator.clipboard.writeText(\'{_skr_int}\')" '
-                f'style="cursor:pointer;color:#3a9e91;font-weight:bold" '
-                f'title="Нажми чтобы скопировать">{_skr_int}</span>'
-                f' — <a href="https://share.streamlit.io/iFlash04/felaviro" '
+                f'<a href="https://share.streamlit.io/iFlash04/felaviro" '
                 f'style="color:#3a9e91" target="_blank">настроить Secrets</a>'
                 f'</p>',
                 unsafe_allow_html=True,
             )
+            st.code(f"skr_divisor = {_skr_int}", language="toml")
             if actual_val > 0:
                 new_div = raw_first / actual_val
                 cal_col1, cal_col2 = st.columns([1, 1])
