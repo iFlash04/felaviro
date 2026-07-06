@@ -1343,4 +1343,4 @@ with st.sidebar:
             st.rerun()
 
     st.markdown("---")
-    st.caption("📦 Версия 3.2.3")
+    st.caption("📦 Версия 4.0.0")
