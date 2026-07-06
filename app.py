@@ -26,8 +26,6 @@ load_dotenv(ENV_FILE)
 def _now():
     return datetime.utcnow() + timedelta(hours=3)
 
-# Media files served directly by Streamlit
-
 st.markdown("""
 <style>
     [data-testid="stApp"] {
@@ -70,8 +68,8 @@ try:
         st.session_state.row_bg = st.query_params["row_bg"]
     if "row_tx" in st.query_params:
         st.session_state.row_tx = st.query_params["row_tx"]
-except Exception:
-    pass
+except Exception as e:
+    print(f"⚠️ Ошибка загрузки настроек из URL: {e}", file=sys.stderr)
 
 if not st.session_state.get("hide_bg_video"):
     try:
@@ -81,8 +79,8 @@ if not st.session_state.get("hide_bg_video"):
             '</video>',
             unsafe_allow_html=True,
         )
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"⚠️ Ошибка загрузки видео: {e}", file=sys.stderr)
     st.markdown(
         """
 <style>
@@ -190,8 +188,8 @@ if os.path.exists(CONFIG_FILE):
             _cfg_init = json.load(f)
         if _cfg_init.get("hide_bg_video"):
             st.session_state.hide_bg_video = True
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"⚠️ Ошибка чтения config.json: {e}", file=sys.stderr)
 
 SKR_DIVISOR = 235767466
 try:
@@ -201,8 +199,8 @@ except Exception:
 try:
     if "skr_divisor" in st.query_params:
         SKR_DIVISOR = float(st.query_params["skr_divisor"])
-except Exception:
-    pass
+except Exception as e:
+    print(f"⚠️ Ошибка чтения skr_divisor из URL: {e}", file=sys.stderr)
 
 client = Client(RPC_URL)
 
@@ -225,8 +223,8 @@ def load_state():
                 if data.get("_date") != _now().strftime("%Y-%m-%d"):
                     return {}
                 return data
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"⚠️ [load_state]: {e}", file=sys.stderr)
     return {}
 
 def save_state(state):
@@ -235,16 +233,16 @@ def save_state(state):
         state["_date"] = _now().strftime("%Y-%m-%d")
         with open(STATE_FILE, 'w') as f:
             json.dump(state, f)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"⚠️ [save_state]: {e}", file=sys.stderr)
 
 def load_agents():
     try:
         if os.path.exists(UA_FILE):
             with open(UA_FILE, 'r') as f:
                 return json.load(f)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"⚠️ [load_agents]: {e}", file=sys.stderr)
     return {}
 
 def save_agents(agents):
@@ -252,8 +250,8 @@ def save_agents(agents):
         os.makedirs(os.path.dirname(UA_FILE), exist_ok=True)
         with open(UA_FILE, 'w') as f:
             json.dump(agents, f)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"⚠️ [save_agents]: {e}", file=sys.stderr)
 
 def init_agents(wallets):
     agents = load_agents()
@@ -271,8 +269,8 @@ def load_data():
                 data = json.load(f)
                 if data.get("_date") == _now().strftime("%Y-%m-%d"):
                     return data
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"⚠️ Ошибка чтения state_txs.json: {e}", file=sys.stderr)
     return {}
 
 def save_data(data_dict):
@@ -281,8 +279,8 @@ def save_data(data_dict):
         data_dict["_date"] = _now().strftime("%Y-%m-%d")
         with open(DATA_FILE, 'w') as f:
             json.dump(data_dict, f)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"⚠️ [save_data]: {e}", file=sys.stderr)
 
 def check_threshold(data):
     state = load_state()
@@ -319,8 +317,8 @@ if "th_sol_low" not in st.session_state:
             with open(CONFIG_FILE) as f:
                 saved = json.load(f)
             DEFAULTS.update(saved)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"⚠️ [load DEFAULTS config]: {e}", file=sys.stderr)
     for k, v in DEFAULTS.items():
         setattr(st.session_state, k, v)
 saved = load_data()
@@ -397,8 +395,8 @@ def get_skr_balance(address, ua_string):
         response = _rpc_with_retry(payload, ua_string)
         if response and "result" in response and response["result"].get("value"):
             return sum(float(x["account"]["data"]["parsed"]["info"]["tokenAmount"]["uiAmount"]) for x in response["result"]["value"])
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"⚠️ [get_skr_balance]: {e}", file=sys.stderr)
     return 0.0
 
 def get_skr_staked(address, ua_string):
@@ -648,8 +646,8 @@ try:
         if "cached_sol_price" not in st.session_state:
             st.session_state.cached_sol_price = pc.get("sol", 0) or None
             st.session_state.cached_skr_price = pc.get("skr", 0) or None
-except Exception:
-    pass
+except Exception as e:
+    print(f"⚠️ [load PRICES_FILE]: {e}", file=sys.stderr)
 if not st.session_state.get("cached_sol_price") and "p" in st.query_params:
     try:
         _qp_p = json.loads(st.query_params["p"])
@@ -660,8 +658,8 @@ if not st.session_state.get("cached_sol_price") and "p" in st.query_params:
         if "cached_sol_price" not in st.session_state:
             st.session_state.cached_sol_price = _qp_p.get("sol", 0) or None
             st.session_state.cached_skr_price = _qp_p.get("skr", 0) or None
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"⚠️ [load query params p]: {e}", file=sys.stderr)
 
 with st.sidebar:
     st.image("media/logo.webp", use_container_width=True)
@@ -809,8 +807,8 @@ if wallets:
                             "wallet": addr,
                             "device": f"{wallets.index(addr)+1:02d}",
                         }
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"⚠️ [load query params d]: {e}", file=sys.stderr)
     data = []
     progress_text = st.empty()
     progress_bar = st.progress(0)
@@ -828,8 +826,8 @@ if wallets:
             os.makedirs(os.path.dirname(PRICES_FILE), exist_ok=True)
             with open(PRICES_FILE, "w") as f:
                 json.dump({"sol": price, "skr": skr_price, "last_full": _now().strftime("%Y-%m-%d %H:%M"), "last_fast": _now().strftime("%Y-%m-%d %H:%M")}, f)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"⚠️ [save PRICES_FILE full]: {e}", file=sys.stderr)
         if not check_rpc_health():
             st.stop()
         st.caption("📡 Полное обновление данных")
@@ -873,8 +871,8 @@ if wallets:
         try:
             st.query_params["d"] = json.dumps({addr: {k: d[k] for k in ("SOL", "SKR", "stake_skr", "stake_sol", "txs", "prev_total", "raw_stake_shares")} for addr, d in saved_data.items()}, default=str)
             st.query_params["p"] = json.dumps({"sol": price, "skr": skr_price, "last_full": _now().strftime("%Y-%m-%d %H:%M"), "last_fast": _now().strftime("%Y-%m-%d %H:%M")})
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"⚠️ [set query params d full]: {e}", file=sys.stderr)
         st.session_state.last_full = _now().strftime("%Y-%m-%d %H:%M")
         st.session_state.last_fast = st.session_state.last_full
     elif refresh_mode == "skr":
@@ -919,8 +917,8 @@ if wallets:
         save_data(saved_data)
         try:
             st.query_params["d"] = json.dumps({addr: {k: d[k] for k in ("SOL", "SKR", "stake_skr", "stake_sol", "txs", "prev_total", "raw_stake_shares")} for addr, d in saved_data.items()}, default=str)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"⚠️ [set query params d skr]: {e}", file=sys.stderr)
         st.session_state.last_fast = _now().strftime("%Y-%m-%d %H:%M")
     elif refresh_mode == "fast":
         price = get_sol_price()
@@ -932,8 +930,8 @@ if wallets:
             with open(PRICES_FILE, "w") as f:
                 json.dump({"sol": price, "skr": skr_price, "last_full": st.session_state.get("last_full", ""), "last_fast": _now().strftime("%Y-%m-%d %H:%M")}, f)
             st.query_params["p"] = json.dumps({"sol": price, "skr": skr_price, "last_full": st.session_state.get("last_full", ""), "last_fast": _now().strftime("%Y-%m-%d %H:%M")})
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"⚠️ [save PRICES_FILE fast]: {e}", file=sys.stderr)
         if not check_rpc_health():
             st.stop()
         st.caption("🔄 Режим быстрого обновления (только транзакции)")
@@ -981,11 +979,13 @@ if wallets:
     
     for item in data:
         if item["wallet"] in new_fire_addrs:
-            item["txs"] = f"{item['txs']} 🔥"
+            item["badge"] = "🔥"
         elif item["wallet"] in new_yellow_addrs:
-            item["txs"] = f"{item['txs']} ⭐"
+            item["badge"] = "⭐"
         elif item["wallet"] in new_green_addrs:
-            item["txs"] = f"{item['txs']} 🌱"
+            item["badge"] = "🌱"
+        else:
+            item["badge"] = ""
     
     progress_text.empty()
     progress_bar.empty()
@@ -1039,6 +1039,7 @@ for i, item in enumerate(data):
             cs = color_stake_sol(val)
         elif h == "txs":
             cs = color_transactions(val)
+            val = f"{val} {item.get('badge', '')}"
         elif h == "delta_skr":
             cs = ""
             try:
@@ -1110,7 +1111,8 @@ with st.sidebar:
     def _save_config():
         s = st.session_state
         for k in DEFAULTS:
-            s[k] = s.get(f"wg_{k}", DEFAULTS[k])
+            if f"wg_{k}" in s:
+                s[k] = s[f"wg_{k}"]
         _enforce_order()
         cfg = {}
         for k in DEFAULTS:
@@ -1124,8 +1126,8 @@ with st.sidebar:
         try:
             for k, v in cfg.items():
                 st.query_params[k] = str(v)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"⚠️ [set query params config]: {e}", file=sys.stderr)
 
     lskr = df['SKR'].sum() if 'SKR' in df.columns else 0
     sskr = df['stake_skr'].sum() if 'stake_skr' in df.columns else 0
@@ -1229,8 +1231,8 @@ with st.sidebar:
                     if st.button("💾 Сохранить множитель", use_container_width=True):
                         try:
                             st.query_params["skr_divisor"] = str(int(new_div))
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            print(f"⚠️ [set query params skr_divisor]: {e}", file=sys.stderr)
                         try:
                             _app_path = os.path.join(BASE_DIR, "app.py")
                             with open(_app_path, "r") as f:
@@ -1238,8 +1240,8 @@ with st.sidebar:
                             _app_code = re.sub(r'SKR_DIVISOR\s*=\s*[\d.]+', f'SKR_DIVISOR = {int(new_div)}', _app_code)
                             with open(_app_path, "w") as f:
                                 f.write(_app_code)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            print(f"⚠️ [save SKR_DIVISOR to app.py]: {e}", file=sys.stderr)
                         st.toast(f"✅ Множитель: {int(new_div)}. Чтобы работал на всех устройствах, добавь `skr_divisor = {int(new_div)}` в Secrets на share.streamlit.io")
                         st.session_state.refresh_mode = "skr"
                         st.rerun()
