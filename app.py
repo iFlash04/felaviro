@@ -16,12 +16,15 @@ WALLETS_FILE = os.path.join(BASE_DIR, "data", "wallets.txt")
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from solana.rpc.api import Client
 from solders.pubkey import Pubkey
-from datetime import datetime, time as dt_time
+from datetime import datetime, time as dt_time, timedelta
 from streamlit_autorefresh import st_autorefresh
 from dotenv import load_dotenv
 from fake_useragent import UserAgent
 
 load_dotenv(ENV_FILE)
+
+def _now():
+    return datetime.utcnow() + timedelta(hours=3)
 
 # Media files served directly by Streamlit
 
@@ -194,14 +197,6 @@ SKR_DIVISOR = 235767466
 try:
     SKR_DIVISOR = float(st.secrets.get("skr_divisor", SKR_DIVISOR))
 except Exception:
-    SKR_DIVISOR = float(os.getenv("SKR_DIVISOR", SKR_DIVISOR))
-try:
-    if os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE) as f:
-            _cfg_d = json.load(f)
-        if "skr_divisor" in _cfg_d:
-            SKR_DIVISOR = float(_cfg_d["skr_divisor"])
-except Exception:
     pass
 try:
     if "skr_divisor" in st.query_params:
@@ -227,7 +222,7 @@ def load_state():
             with open(STATE_FILE, 'r') as f:
                 data = json.load(f)
                 # Проверяем дату - если новый день, сбрасываем
-                if data.get("_date") != datetime.now().strftime("%Y-%m-%d"):
+                if data.get("_date") != _now().strftime("%Y-%m-%d"):
                     return {}
                 return data
     except Exception:
@@ -237,7 +232,7 @@ def load_state():
 def save_state(state):
     try:
         os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
-        state["_date"] = datetime.now().strftime("%Y-%m-%d")
+        state["_date"] = _now().strftime("%Y-%m-%d")
         with open(STATE_FILE, 'w') as f:
             json.dump(state, f)
     except Exception:
@@ -274,7 +269,7 @@ def load_data():
         if os.path.exists(DATA_FILE):
             with open(DATA_FILE, 'r') as f:
                 data = json.load(f)
-                if data.get("_date") == datetime.now().strftime("%Y-%m-%d"):
+                if data.get("_date") == _now().strftime("%Y-%m-%d"):
                     return data
     except Exception:
         pass
@@ -283,7 +278,7 @@ def load_data():
 def save_data(data_dict):
     try:
         os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
-        data_dict["_date"] = datetime.now().strftime("%Y-%m-%d")
+        data_dict["_date"] = _now().strftime("%Y-%m-%d")
         with open(DATA_FILE, 'w') as f:
             json.dump(data_dict, f)
     except Exception:
@@ -330,7 +325,8 @@ if "th_sol_low" not in st.session_state:
         setattr(st.session_state, k, v)
 saved = load_data()
 
-if not saved and "d" not in st.query_params and not st.session_state.get("refresh_mode"):
+if not saved and "d" not in st.query_params and not st.session_state.get("refresh_mode") and not st.session_state.get("_first_run_tried"):
+    st.session_state._first_run_tried = True
     st.session_state.refresh_mode = "full"
     if os.path.exists(DATA_FILE):
         os.remove(DATA_FILE)
@@ -389,7 +385,7 @@ def _rpc_with_retry(payload, ua_string=None, max_retries=3, delay=0.5):
             return response.json()
         except Exception as e:
             elapsed = time.time() - start
-            print(f"  ❌ Error: {e} ({elapsed:.2f}s)", file=sys.stderr)
+            print(f"  ❌ Request failed ({elapsed:.2f}s)", file=sys.stderr)
             if attempt < max_retries - 1:
                 time.sleep(random.uniform(0.1, 2.5))
     return None
@@ -472,8 +468,8 @@ def get_data(address, wallet_agents, log_callback=None):
                             continue
                         elapsed = time.time() - start
                         log(f"  ❌ Error: {e} ({elapsed:.2f}s)")
-                today = datetime.combine(datetime.now().date(), dt_time.min)
-                txs = sum(1 for tx in sigs if (datetime.fromtimestamp(tx.block_time) if tx.block_time else datetime.now()) >= today)
+                today = datetime.combine(_now().date(), dt_time.min)
+                txs = sum(1 for tx in sigs if ((datetime.utcfromtimestamp(tx.block_time) + timedelta(hours=3)) if tx.block_time else _now()) >= today)
                 delay = random.uniform(0.05, 0.3)
                 time.sleep(delay)
                 log(f"  ✅ {q}: {txs} TX (+{delay:.2f}s)")
@@ -528,8 +524,8 @@ def get_txs_only(address, wallet_agents, log_callback=None):
                     continue
                 elapsed = time.time() - start
                 log(f"  ❌ Error: {e} ({elapsed:.2f}s)")
-        today = datetime.combine(datetime.now().date(), dt_time.min)
-        txs = sum(1 for tx in sigs if (datetime.fromtimestamp(tx.block_time) if tx.block_time else datetime.now()) >= today)
+        today = datetime.combine(_now().date(), dt_time.min)
+        txs = sum(1 for tx in sigs if ((datetime.utcfromtimestamp(tx.block_time) + timedelta(hours=3)) if tx.block_time else _now()) >= today)
         log(f"  ✅ TX: {txs}")
         return txs
     except Exception as e:
@@ -677,7 +673,7 @@ with st.sidebar:
             return None
         try:
             dt = datetime.strptime(ts, "%Y-%m-%d %H:%M")
-            return (datetime.now() - dt).total_seconds()
+            return (_now() - dt).total_seconds()
         except Exception:
             return None
 
@@ -831,7 +827,7 @@ if wallets:
         try:
             os.makedirs(os.path.dirname(PRICES_FILE), exist_ok=True)
             with open(PRICES_FILE, "w") as f:
-                json.dump({"sol": price, "skr": skr_price, "last_full": datetime.now().strftime("%Y-%m-%d %H:%M"), "last_fast": datetime.now().strftime("%Y-%m-%d %H:%M")}, f)
+                json.dump({"sol": price, "skr": skr_price, "last_full": _now().strftime("%Y-%m-%d %H:%M"), "last_fast": _now().strftime("%Y-%m-%d %H:%M")}, f)
         except Exception:
             pass
         if not check_rpc_health():
@@ -876,10 +872,10 @@ if wallets:
         save_data(saved_data)
         try:
             st.query_params["d"] = json.dumps({addr: {k: d[k] for k in ("SOL", "SKR", "stake_skr", "stake_sol", "txs", "prev_total", "raw_stake_shares")} for addr, d in saved_data.items()}, default=str)
-            st.query_params["p"] = json.dumps({"sol": price, "skr": skr_price, "last_full": datetime.now().strftime("%Y-%m-%d %H:%M"), "last_fast": datetime.now().strftime("%Y-%m-%d %H:%M")})
+            st.query_params["p"] = json.dumps({"sol": price, "skr": skr_price, "last_full": _now().strftime("%Y-%m-%d %H:%M"), "last_fast": _now().strftime("%Y-%m-%d %H:%M")})
         except Exception:
             pass
-        st.session_state.last_full = datetime.now().strftime("%Y-%m-%d %H:%M")
+        st.session_state.last_full = _now().strftime("%Y-%m-%d %H:%M")
         st.session_state.last_fast = st.session_state.last_full
     elif refresh_mode == "skr":
         st.session_state.cached_skr_price = skr_price
@@ -925,7 +921,7 @@ if wallets:
             st.query_params["d"] = json.dumps({addr: {k: d[k] for k in ("SOL", "SKR", "stake_skr", "stake_sol", "txs", "prev_total", "raw_stake_shares")} for addr, d in saved_data.items()}, default=str)
         except Exception:
             pass
-        st.session_state.last_fast = datetime.now().strftime("%Y-%m-%d %H:%M")
+        st.session_state.last_fast = _now().strftime("%Y-%m-%d %H:%M")
     elif refresh_mode == "fast":
         price = get_sol_price()
         skr_price = get_skr_price()
@@ -934,8 +930,8 @@ if wallets:
         try:
             os.makedirs(os.path.dirname(PRICES_FILE), exist_ok=True)
             with open(PRICES_FILE, "w") as f:
-                json.dump({"sol": price, "skr": skr_price, "last_full": st.session_state.get("last_full", ""), "last_fast": datetime.now().strftime("%Y-%m-%d %H:%M")}, f)
-            st.query_params["p"] = json.dumps({"sol": price, "skr": skr_price, "last_full": st.session_state.get("last_full", ""), "last_fast": datetime.now().strftime("%Y-%m-%d %H:%M")})
+                json.dump({"sol": price, "skr": skr_price, "last_full": st.session_state.get("last_full", ""), "last_fast": _now().strftime("%Y-%m-%d %H:%M")}, f)
+            st.query_params["p"] = json.dumps({"sol": price, "skr": skr_price, "last_full": st.session_state.get("last_full", ""), "last_fast": _now().strftime("%Y-%m-%d %H:%M")})
         except Exception:
             pass
         if not check_rpc_health():
@@ -969,7 +965,7 @@ if wallets:
             if item["wallet"] in saved_data:
                 saved_data[item["wallet"]]["txs"] = item["txs"]
         save_data(saved_data)
-        st.session_state.last_fast = datetime.now().strftime("%Y-%m-%d %H:%M")
+        st.session_state.last_fast = _now().strftime("%Y-%m-%d %H:%M")
     else:
         data = [saved_data[addr] for addr in wallets if addr in saved_data]
 
@@ -1188,19 +1184,26 @@ with st.sidebar:
                 else:
                     st.error("❌ Невалидный адрес")
         with c2:
-            remove_addr = st.selectbox("Удалить", options=[""] + wallets, key="remove_wallet")
-            if st.button("➖ Удалить") and remove_addr:
-                with open(WALLETS_FILE, "r") as f:
-                    lines = f.readlines()
-                with open(WALLETS_FILE, "w") as f:
-                    for line in lines:
-                        if line.strip() != remove_addr:
-                            f.write(line)
-                st.success(f"✅ {remove_addr[:8]}... удалён")
-                st.session_state.refresh_mode = "full"
-                if os.path.exists(DATA_FILE):
-                    os.remove(DATA_FILE)
-                st.rerun()
+            try:
+                _from_secrets = bool(st.secrets.get("wallets"))
+            except Exception:
+                _from_secrets = False
+            if _from_secrets:
+                st.caption("☁️ На Cloud редактирование через Secrets")
+            else:
+                remove_addr = st.selectbox("Удалить", options=[""] + wallets, key="remove_wallet")
+                if st.button("➖ Удалить") and remove_addr:
+                    with open(WALLETS_FILE, "r") as f:
+                        lines = f.readlines()
+                    with open(WALLETS_FILE, "w") as f:
+                        for line in lines:
+                            if line.strip() != remove_addr:
+                                f.write(line)
+                    st.success(f"✅ {remove_addr[:8]}... удалён")
+                    st.session_state.refresh_mode = "full"
+                    if os.path.exists(DATA_FILE):
+                        os.remove(DATA_FILE)
+                    st.rerun()
 
     raw_first = data[0].get("raw_stake_shares", 0) if data else 0
     if raw_first > 0:
@@ -1209,6 +1212,7 @@ with st.sidebar:
             default_stake = data[0].get("stake_skr", 0) if data else 0.0
             actual_val = st.number_input("SKR в стейкинге (01)", value=float(default_stake), step=1.0, key="cal_actual")
             st.caption(f"Текущий множитель: {SKR_DIVISOR:,.0f}")
+            st.caption("☁️ Чтобы множитель работал на всех устройствах — добавь `skr_divisor = X` в Secrets на share.streamlit.io")
             if actual_val > 0:
                 new_div = raw_first / actual_val
                 cal_col1, cal_col2 = st.columns([1, 1])
@@ -1216,22 +1220,20 @@ with st.sidebar:
                         st.caption(f"Новый множитель: {new_div:,.0f}")
                 with cal_col2:
                     if st.button("💾 Сохранить множитель", use_container_width=True):
-                        os.environ["SKR_DIVISOR"] = str(int(new_div))
-                        try:
-                            os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
-                            with open(CONFIG_FILE) as f:
-                                _cfg_cal = json.load(f)
-                            _cfg_cal["skr_divisor"] = int(new_div)
-                            with open(CONFIG_FILE, "w") as f:
-                                json.dump(_cfg_cal, f)
-                        except FileNotFoundError:
-                            with open(CONFIG_FILE, "w") as f:
-                                json.dump({"skr_divisor": int(new_div)}, f)
                         try:
                             st.query_params["skr_divisor"] = str(int(new_div))
                         except Exception:
                             pass
-                        st.success(f"✅ Сохранено: {int(new_div)}")
+                        try:
+                            _app_path = os.path.join(BASE_DIR, "app.py")
+                            with open(_app_path, "r") as f:
+                                _app_code = f.read()
+                            _app_code = re.sub(r'SKR_DIVISOR\s*=\s*[\d.]+', f'SKR_DIVISOR = {int(new_div)}', _app_code)
+                            with open(_app_path, "w") as f:
+                                f.write(_app_code)
+                        except Exception:
+                            pass
+                        st.toast(f"✅ Множитель: {int(new_div)}. Чтобы работал на всех устройствах, добавь `skr_divisor = {int(new_div)}` в Secrets на share.streamlit.io")
                         st.session_state.refresh_mode = "skr"
                         st.rerun()
 
