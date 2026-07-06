@@ -1214,8 +1214,8 @@ with st.sidebar:
             _skr_int = int(SKR_DIVISOR)
             st.markdown(
                 f'<p style="font-size:0.85rem;color:#6b7280;margin-bottom:8px">'
-                f'<a href="https://share.streamlit.io/iFlash04/felaviro" '
-                f'style="color:#3a9e91" target="_blank">настроить Secrets</a>'
+                f'<a href="https://share.streamlit.io" '
+                f'style="color:#3a9e91" target="_blank">Streamlit Cloud → Settings → Secrets</a>'
                 f'</p>',
                 unsafe_allow_html=True,
             )
