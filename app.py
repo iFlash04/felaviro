@@ -330,8 +330,8 @@ if not saved and "d" not in st.query_params and not st.session_state.get("refres
         os.remove(DATA_FILE)
     st.rerun()
 
-if "refresh_key" not in st.session_state:
-    st.session_state.refresh_key = 0
+if "_auto_inited" not in st.session_state:
+    st.session_state._auto_inited = True
     st.session_state.auto_interval = random.randint(15 * 60 * 1000, 40 * 60 * 1000)
 counter = st_autorefresh(interval=st.session_state.auto_interval, key="refresh_key")
 if counter > 0 and not st.session_state.get("refresh_mode"):
