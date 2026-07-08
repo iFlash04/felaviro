@@ -730,17 +730,16 @@ with st.sidebar:
         with c22:
             if auto_full_on or st.session_state.get("auto_refresh", True):
                 _next_ts = int(time.time()) + st.session_state.get("auto_interval", 1800000) // 1000 + 1
-                st.html(
-                    f'<span style="font-size:0.75rem;color:#6b7280;font-family:monospace">⏱ <span class="tmr">—</span></span>'
-                    f'<script>'
-                    f'var n={_next_ts};'
+                st.markdown(
+                    f'<span style="font-size:0.75rem;color:#6b7280;font-family:monospace">⏱ <span id="t">—</span></span>'
+                    f'<img src=x style="display:none" onerror="var n={_next_ts};'
                     f'setInterval(function(){{'
-                    f'  var e=document.querySelector(".tmr");'
-                    f'  if(!e)return;'
-                    f'  var d=Math.max(0,n-Date.now()/1e3|0);'
-                    f'  e.textContent=(d/60|0)+":"+(d%60<10?"0":"")+(d%60|0)'
-                    f'}},500)'
-                    f'</script>'
+                    f'var e=document.getElementById(\'t\');'
+                    f'if(!e)return;'
+                    f'var d=Math.max(0,n-Math.floor(Date.now()/1000));'
+                    f'e.textContent=Math.floor(d/60)+\':\'+(d%60<10?\'0\':\'\')+Math.floor(d%60)'
+                    f'}},500)">',
+                    unsafe_allow_html=True,
                 )
 
     c1, c2 = st.columns(2)
