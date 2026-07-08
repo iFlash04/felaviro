@@ -654,7 +654,7 @@ if _auto_on:
     )
 else:
     _title = '📱'
-st.components.v1.html(
+st.iframe(
     f'<div style="font-size:1.5rem;font-weight:700;color:#cfe6e4;font-family:system-ui;line-height:1.3">'
     f'{_title}</div>{_script}',
     height=45,
