@@ -411,7 +411,7 @@ def _rpc_with_retry(payload, ua_string=None, max_retries=3, delay=0.5):
                 time.sleep(random.uniform(0.1, 2.5))
     return None
 
-def get_txs_only(address, ua, log_callback=None):
+def get_data(address, ua, log_callback=None):
     def log(msg):
         if log_callback:
             log_callback(msg)
