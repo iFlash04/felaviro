@@ -551,32 +551,6 @@ def get_txs_only(address, ua, log_callback=None):
         log(f"  ❌ Error: {e}")
         return 0
 
-def get_skr_data(address, ua, saved, log_callback=None):
-    def log(msg):
-        if log_callback:
-            log_callback(msg)
-        else:
-            print(msg)
-    log(f"🔄 {address[:8]}... UA: {ua[:40]}...")
-    delay = random.uniform(0.05, 1.5)
-    time.sleep(delay)
-    log(f"  ⏳ старт (+{delay:.2f}s)")
-    try:
-        skr_bal = get_skr_balance(address, ua)
-        delay = random.uniform(0.05, 0.3)
-        time.sleep(delay)
-        log(f"  ✅ skr: {skr_bal:.2f} SKR (+{delay:.2f}s)")
-        skr_staked, raw_stake_shares = get_skr_staked(address, ua)
-        delay = random.uniform(0.05, 0.3)
-        time.sleep(delay)
-        log(f"  ✅ stake_skr: {skr_staked:.2f} (raw: {raw_stake_shares}) (+{delay:.2f}s)")
-        old = saved.get(address, {})
-        return skr_bal, skr_staked, raw_stake_shares, old.get("SOL", 0), old.get("stake_sol", 0), old.get("txs", 0)
-    except Exception as e:
-        log(f"  ❌ Error: {e}")
-        old = saved.get(address, {})
-        return 0.0, 0.0, 0, old.get("SOL", 0), old.get("stake_sol", 0), old.get("txs", 0)
-
 def color_transactions(val):
     t = st.session_state
     if isinstance(val, str):
@@ -753,10 +727,6 @@ with st.sidebar:
         st.checkbox("Авто", value=st.session_state.get("auto_full", False), key="auto_full",
                     help="Приоритет полного обновления над быстрым")
 
-    if st.button("🔄 SKR и стейкинг", width='stretch'):
-        st.session_state.refresh_mode = "skr"
-        st.rerun()
-
     if st.button("🔄 Быстрое обновление", type="primary", width='stretch'):
         st.session_state.refresh_mode = "fast"
         st.rerun()
@@ -912,51 +882,6 @@ if wallets:
             print(f"⚠️ [set query params d full]: {e}", file=sys.stderr)
         st.session_state.last_full = _now().strftime("%Y-%m-%d %H:%M")
         st.session_state.last_fast = st.session_state.last_full
-    elif refresh_mode == "skr":
-        st.session_state.cached_skr_price = skr_price
-        st.caption("🔧 Пересчёт SKR и стейкинга")
-        with st.spinner('Обновление SKR...'):
-            with ThreadPoolExecutor(max_workers=random.randint(1, 4)) as executor:
-                futures = {executor.submit(get_skr_data, addr, _ua_for_wallet(addr), saved_data): (i, addr) for i, addr in enumerate(wallets)}
-
-                completed = 0
-                for future in as_completed(futures):
-                    completed += 1
-                    idx, addr = futures[future]
-                    progress_text.text(f'SKR {completed} из {len(wallets)}...')
-                    progress_bar.progress(int(completed / len(wallets) * 100))
-
-                    k, skr_staked, rss, s, ss, t = future.result()
-                    data.append({
-                        "wallet": addr,
-                        "device": f"{idx+1:02d}",
-                        "SOL": s,
-                        "SKR": k,
-                        "stake_skr": round(skr_staked, 2),
-                        "stake_sol": ss,
-                        "txs": t,
-                        "raw_stake_shares": rss,
-                    })
-
-        saved_data = load_data()
-        prev_totals = {}
-        for addr in wallets:
-            p = saved_data.get(addr, {})
-            if p:
-                prev_totals[addr] = p.get("prev_total", p.get("SKR", 0) + p.get("stake_skr", 0))
-        for item in data:
-            addr = item["wallet"]
-            curr_total = item["SKR"] + item["stake_skr"]
-            prev = prev_totals.get(addr, curr_total)
-            item["delta_skr"] = round(curr_total - prev, 1)
-            item["prev_total"] = curr_total
-            saved_data[addr] = item
-        save_data(saved_data)
-        try:
-            st.query_params["d"] = json.dumps({addr: {k: d[k] for k in ("SOL", "SKR", "stake_skr", "stake_sol", "txs", "prev_total", "raw_stake_shares")} for addr, d in saved_data.items() if isinstance(d, dict)}, default=str)
-        except Exception as e:
-            print(f"⚠️ [set query params d skr]: {e}", file=sys.stderr)
-        st.session_state.last_fast = _now().strftime("%Y-%m-%d %H:%M")
     elif refresh_mode == "fast":
         price = get_sol_price()
         skr_price = get_skr_price()
