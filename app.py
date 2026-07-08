@@ -362,9 +362,8 @@ if counter > 0 and not st.session_state.get("refresh_mode"):
 
 def get_sol_price():
     try:
-        res = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT", headers={"User-Agent": _price_ua}, timeout=random.randint(3, 10))
-        data = res.json()
-        return float(data.get("price", 0))
+        res = requests.get("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd", headers={"User-Agent": _price_ua}, timeout=random.randint(3, 10))
+        return float(res.json().get("solana", {}).get("usd", 0))
     except Exception as e:
         print(f"⚠️ Ошибка получения цены SOL: {e}", file=sys.stderr)
         return 0.0
