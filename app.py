@@ -1173,14 +1173,16 @@ with st.sidebar:
     skr_liq_title = f' title="${round(liquid_skr_usd, 2)}"' if skr_price and skr_price > 0 else ""
     skr_stk_title = f' title="${round(staked_skr_usd, 2)}"' if skr_price and skr_price > 0 else ""
     with c1:
-        st.metric("💎 Всего SKR", f"{round(total_skr, 1)}", help=skr_usd_help)
+        skr_label = "💎 Всего SKR" + (f" (${round(total_skr_usd, 2)})" if skr_price and skr_price > 0 else "")
+        st.metric(skr_label, f"{round(total_skr, 1)}", help=skr_usd_help)
         st.markdown(f"<div style='line-height:1.2;margin-top:-12px'><span{skr_liq_title}>┣ Ликв: {round(liquid_skr, 1)}</span><br><span{skr_stk_title}>┗ Стейк: {round(staked_skr, 1)}</span></div>", unsafe_allow_html=True)
 
     sol_usd_help = f"${round(total_sol_usd, 2)}" if price_val else None
     sol_liq_title = f' title="${round(liquid_sol_usd, 2)}"' if price_val else ""
     sol_stk_title = f' title="${round(staked_sol_usd, 2)}"' if price_val else ""
     with c2:
-        st.metric("🧂 Всего SOL", f"{round(total_sol, 3)}", help=sol_usd_help)
+        sol_label = "🧂 Всего SOL" + (f" (${round(total_sol_usd, 2)})" if price_val else "")
+        st.metric(sol_label, f"{round(total_sol, 3)}", help=sol_usd_help)
         st.markdown(f"<div style='line-height:1.2;margin-top:-12px'><span{sol_liq_title}>┣ Ликв: {round(liquid_sol, 3)}</span><br><span{sol_stk_title}>┗ Стейк: {round(staked_sol, 3)}</span></div>", unsafe_allow_html=True)
 
     total_delta = sum(d.get("delta_skr", 0) for d in data)
