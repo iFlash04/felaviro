@@ -633,20 +633,26 @@ def color_skr(val):
     else:
         return 'background-color: #87cefa; color: black'
 
-_timer_html = ' ⏱ <span id="t">—</span>' if st.session_state.get("auto_full", False) or st.session_state.get("auto_refresh", True) else ''
-_next_ts = int(time.time()) + st.session_state.get("auto_interval", 60000) // 1000 + 1
+_auto_on = st.session_state.get("auto_full", False) or st.session_state.get("auto_refresh", True)
+_title = "Быстрое автообновление"
+_script = ''
+if _auto_on:
+    _next_ts = int(time.time()) + st.session_state.get("auto_interval", 60000) // 1000 + 1
+    _title += ' ⏱ <span id="t">—</span>'
+    _script = (
+        f'<script>'
+        f'var n={_next_ts};'
+        f'setInterval(function(){{'
+        f'var e=document.getElementById("t");'
+        f'if(!e)return;'
+        f'var d=Math.max(0,n-Math.floor(Date.now()/1000));'
+        f'e.textContent=Math.floor(d/60)+":"+(d%60<10?"0":"")+Math.floor(d%60)'
+        f'}},500)'
+        f'</script>'
+    )
 st.components.v1.html(
-    f'<div style="font-size:1.8rem;font-weight:700;color:#cfe6e4;font-family:system-ui;line-height:1.3">'
-    f'📲{_timer_html}</div>'
-    f'<script>'
-    f'var n={_next_ts};'
-    f'setInterval(function(){{'
-    f'var e=document.getElementById("t");'
-    f'if(!e)return;'
-    f'var d=Math.max(0,n-Math.floor(Date.now()/1000));'
-    f'e.textContent=Math.floor(d/60)+":"+(d%60<10?"0":"")+Math.floor(d%60)'
-    f'}},500)'
-    f'</script>',
+    f'<div style="font-size:1.5rem;font-weight:700;color:#cfe6e4;font-family:system-ui;line-height:1.3">'
+    f'{_title}</div>{_script}',
     height=45,
 )
 
