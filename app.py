@@ -634,11 +634,10 @@ def color_skr(val):
         return 'background-color: #87cefa; color: black'
 
 _auto_on = st.session_state.get("auto_full", False) or st.session_state.get("auto_refresh", True)
-_title = "Быстрое автообновление"
 _script = ''
 if _auto_on:
     _next_ts = int(time.time()) + st.session_state.get("auto_interval", 60000) // 1000 + 1
-    _title += ' ⏱ <span id="t">—</span>'
+    _title = '📲 ⏱ <span id="t">—</span>'
     _script = (
         f'<script>'
         f'var n={_next_ts};'
@@ -650,6 +649,8 @@ if _auto_on:
         f'}},500)'
         f'</script>'
     )
+else:
+    _title = '📱'
 st.components.v1.html(
     f'<div style="font-size:1.5rem;font-weight:700;color:#cfe6e4;font-family:system-ui;line-height:1.3">'
     f'{_title}</div>{_script}',
