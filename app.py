@@ -216,8 +216,8 @@ UA_POOL = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36",
 ]
 
-def _ua_for_wallet(address, salt=0):
-    return UA_POOL[hash(address + str(salt)) % len(UA_POOL)]
+def _ua_for_wallet(address):
+    return UA_POOL[hash(address) % len(UA_POOL)]
 
 if os.path.exists(CONFIG_FILE):
     try:
@@ -344,8 +344,6 @@ if not saved and "d" not in st.query_params and not st.session_state.get("refres
 if "_auto_inited" not in st.session_state:
     st.session_state._auto_inited = True
     st.session_state.auto_interval = random.randint(15 * 60 * 1000, 40 * 60 * 1000)
-if "ua_salt" not in st.session_state:
-    st.session_state.ua_salt = 0
 counter = st_autorefresh(interval=st.session_state.auto_interval, key="refresh_key")
 if counter > 0 and not st.session_state.get("refresh_mode"):
     if counter != st.session_state.get("_last_auto_counter", 0):
@@ -759,16 +757,10 @@ with st.sidebar:
         st.checkbox("Авто", value=st.session_state.get("auto_refresh", True) and not auto_full_on,
                     key="auto_refresh", disabled=auto_full_on)
 
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("🔐 Сменить UA", width='stretch'):
-            st.session_state.ua_salt += 1
-            st.rerun()
-    with c2:
-        blurred = st.session_state.get("blur_table", False)
-        if st.button("👁️ Скрыть" if not blurred else "👁️ Показать", width='stretch'):
-            st.session_state.blur_table = not blurred
-            st.rerun()
+    blurred = st.session_state.get("blur_table", False)
+    if st.button("👁️ Скрыть" if not blurred else "👁️ Показать", width='stretch'):
+        st.session_state.blur_table = not blurred
+        st.rerun()
 
     if blurred:
         st.markdown("""
@@ -868,7 +860,7 @@ if wallets:
                 prev_totals[addr] = p.get("prev_total", p.get("SKR", 0) + p.get("stake_skr", 0))
         with st.spinner('📡 Обновление всех данных и их кеширование...'):
             with ThreadPoolExecutor(max_workers=random.randint(1, 4)) as executor:
-                futures = {executor.submit(get_data, addr, _ua_for_wallet(addr, st.session_state.ua_salt)): (i, addr) for i, addr in enumerate(wallets)}
+                futures = {executor.submit(get_data, addr, _ua_for_wallet(addr)): (i, addr) for i, addr in enumerate(wallets)}
 
                 completed = 0
                 for future in as_completed(futures):
@@ -910,7 +902,7 @@ if wallets:
         st.caption("🔧 Пересчёт SKR и стейкинга")
         with st.spinner('Обновление SKR...'):
             with ThreadPoolExecutor(max_workers=random.randint(1, 4)) as executor:
-                futures = {executor.submit(get_skr_data, addr, _ua_for_wallet(addr, st.session_state.ua_salt), saved_data): (i, addr) for i, addr in enumerate(wallets)}
+                futures = {executor.submit(get_skr_data, addr, _ua_for_wallet(addr), saved_data): (i, addr) for i, addr in enumerate(wallets)}
 
                 completed = 0
                 for future in as_completed(futures):
@@ -967,7 +959,7 @@ if wallets:
         st.caption("🔄 Режим быстрого обновления (только транзакции)")
         with st.spinner('Проверка транзакций...'):
             with ThreadPoolExecutor(max_workers=random.randint(1, 4)) as executor:
-                futures = {executor.submit(get_txs_only, addr, _ua_for_wallet(addr, st.session_state.ua_salt)): (i, addr) for i, addr in enumerate(wallets)}
+                futures = {executor.submit(get_txs_only, addr, _ua_for_wallet(addr)): (i, addr) for i, addr in enumerate(wallets)}
 
                 completed = 0
                 for future in as_completed(futures):
