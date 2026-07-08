@@ -217,7 +217,7 @@ UA_POOL = [
 ]
 
 def _ua_for_wallet(address):
-    return UA_POOL[hash(address) % len(UA_POOL)]
+    return UA_POOL[sum(ord(c) for c in address) % len(UA_POOL)]
 
 if os.path.exists(CONFIG_FILE):
     try:
