@@ -365,7 +365,7 @@ def get_skr_price():
         url = "https://api.coingecko.com/api/v3/simple/token_price/solana"
         params = {"contract_addresses": SKR_MINT, "vs_currencies": "usd"}
         res = requests.get(url, params=params, headers={"User-Agent": _price_ua}, timeout=random.randint(3, 10))
-        return float(res.json()[SKR_MINT]["usd"])
+        return float(res.json().get(SKR_MINT, {}).get("usd", 0))
     except Exception as e:
         print(f"⚠️ Ошибка получения цены SKR: {e}", file=sys.stderr)
         return 0.0
@@ -893,7 +893,7 @@ if wallets:
             saved_data[addr] = item
         save_data(saved_data)
         try:
-            st.query_params["d"] = json.dumps({addr: {k: d[k] for k in ("SOL", "SKR", "stake_skr", "stake_sol", "txs", "prev_total", "raw_stake_shares")} for addr, d in saved_data.items()}, default=str)
+            st.query_params["d"] = json.dumps({addr: {k: d[k] for k in ("SOL", "SKR", "stake_skr", "stake_sol", "txs", "prev_total", "raw_stake_shares")} for addr, d in saved_data.items() if isinstance(d, dict)}, default=str)
             st.query_params["p"] = json.dumps({"sol": price, "skr": skr_price, "last_full": _now().strftime("%Y-%m-%d %H:%M"), "last_fast": _now().strftime("%Y-%m-%d %H:%M")})
         except Exception as e:
             print(f"⚠️ [set query params d full]: {e}", file=sys.stderr)
@@ -940,7 +940,7 @@ if wallets:
             saved_data[addr] = item
         save_data(saved_data)
         try:
-            st.query_params["d"] = json.dumps({addr: {k: d[k] for k in ("SOL", "SKR", "stake_skr", "stake_sol", "txs", "prev_total", "raw_stake_shares")} for addr, d in saved_data.items()}, default=str)
+            st.query_params["d"] = json.dumps({addr: {k: d[k] for k in ("SOL", "SKR", "stake_skr", "stake_sol", "txs", "prev_total", "raw_stake_shares")} for addr, d in saved_data.items() if isinstance(d, dict)}, default=str)
         except Exception as e:
             print(f"⚠️ [set query params d skr]: {e}", file=sys.stderr)
         st.session_state.last_fast = _now().strftime("%Y-%m-%d %H:%M")
@@ -1367,9 +1367,9 @@ with st.sidebar:
     with st.expander("🎨 Оформление", expanded=False):
         col1, col2 = st.columns(2)
         with col1:
-            st.color_picker("Фон строк", "#7d91a6", key="row_bg")
+            st.color_picker("Фон строк", st.session_state.get("row_bg", "#7d91a6"), key="row_bg")
         with col2:
-            st.color_picker("Текст", "#000000", key="row_tx")
+            st.color_picker("Текст", st.session_state.get("row_tx", "#000000"), key="row_tx")
         hide_vid = st.session_state.get("hide_bg_video", False)
         if st.button("🎬 Фон OFF" if not hide_vid else "🎬 Фон ON", key="toggle_bg"):
             new_val = not hide_vid
