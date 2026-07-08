@@ -16,16 +16,14 @@ WALLETS_FILE = os.path.join(BASE_DIR, "data", "wallets.txt")
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from solana.rpc.api import Client
 from solders.pubkey import Pubkey
-from datetime import datetime, time as dt_time, timedelta, timezone
+from datetime import datetime, timedelta
 from streamlit_autorefresh import st_autorefresh
 from dotenv import load_dotenv
 
 load_dotenv(ENV_FILE)
 
-MSK = timezone(timedelta(hours=3))
-
 def _now():
-    return datetime.now(MSK)
+    return datetime.utcnow()
 
 st.markdown("""
 <style>
@@ -477,7 +475,7 @@ def get_data(address, ua, log_callback=None):
                         elapsed = time.time() - start
                         log(f"  ❌ Error: {e} ({elapsed:.2f}s)")
                 today = _now().replace(hour=0, minute=0, second=0, microsecond=0)
-                txs = sum(1 for tx in sigs if ((datetime.fromtimestamp(tx.block_time, tz=MSK)) if tx.block_time else _now()) >= today)
+                txs = sum(1 for tx in sigs if ((datetime.utcfromtimestamp(tx.block_time)) if tx.block_time else _now()) >= today)
                 delay = random.uniform(0.05, 0.3)
                 time.sleep(delay)
                 log(f"  ✅ {q}: {txs} TX (+{delay:.2f}s)")
@@ -532,7 +530,7 @@ def get_txs_only(address, ua, log_callback=None):
                 elapsed = time.time() - start
                 log(f"  ❌ Error: {e} ({elapsed:.2f}s)")
         today = _now().replace(hour=0, minute=0, second=0, microsecond=0)
-        txs = sum(1 for tx in sigs if ((datetime.fromtimestamp(tx.block_time, tz=MSK)) if tx.block_time else _now()) >= today)
+        txs = sum(1 for tx in sigs if ((datetime.utcfromtimestamp(tx.block_time)) if tx.block_time else _now()) >= today)
         log(f"  ✅ TX: {txs}")
         return txs
     except Exception as e:
