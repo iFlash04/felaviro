@@ -793,29 +793,6 @@ df = pd.DataFrame()
 
 if wallets:
     saved_data = load_data()
-    if not saved_data and "d" in st.query_params:
-        try:
-            _qp_d = json.loads(st.query_params["d"])
-            if isinstance(_qp_d, dict):
-                for addr, entry in _qp_d.items():
-                    if addr in wallets:
-                        sol = entry.get("SOL", 0)
-                        skr = entry.get("SKR", 0)
-                        stake_skr = entry.get("stake_skr", 0)
-                        stake_sol = entry.get("stake_sol", 0)
-                        txs = entry.get("txs", 0)
-                        prev = entry.get("prev_total", skr + stake_skr)
-                        rss = entry.get("raw_stake_shares", 0)
-                        saved_data[addr] = {
-                            "SOL": sol, "SKR": skr, "stake_skr": stake_skr,
-                            "stake_sol": stake_sol, "txs": txs,
-                            "prev_total": prev, "raw_stake_shares": rss,
-                            "delta_skr": round((skr + stake_skr) - prev, 1),
-                            "wallet": addr,
-                            "device": f"{wallets.index(addr)+1:02d}",
-                        }
-        except Exception as e:
-            print(f"⚠️ [load query params d]: {e}", file=sys.stderr)
     data = []
     progress_text = st.empty()
     progress_bar = st.progress(0)
@@ -876,7 +853,6 @@ if wallets:
             saved_data[addr] = item
         save_data(saved_data)
         try:
-            st.query_params["d"] = json.dumps({addr: {k: d[k] for k in ("SOL", "SKR", "stake_skr", "stake_sol", "txs", "prev_total", "raw_stake_shares")} for addr, d in saved_data.items() if isinstance(d, dict)}, default=str)
             st.query_params["p"] = json.dumps({"sol": price, "skr": skr_price, "last_full": _now().strftime("%Y-%m-%d %H:%M"), "last_fast": _now().strftime("%Y-%m-%d %H:%M")})
         except Exception as e:
             print(f"⚠️ [set query params d full]: {e}", file=sys.stderr)
