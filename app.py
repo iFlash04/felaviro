@@ -332,7 +332,7 @@ if not saved and "d" not in st.query_params and not st.session_state.get("refres
 
 if "_auto_inited" not in st.session_state:
     st.session_state._auto_inited = True
-    st.session_state.auto_interval = random.randint(15 * 60 * 1000, 40 * 60 * 1000)
+    st.session_state.auto_interval = 60000
 counter = st_autorefresh(interval=st.session_state.auto_interval, key="refresh_key")
 if counter > 0 and not st.session_state.get("refresh_mode"):
     if counter != st.session_state.get("_last_auto_counter", 0):
@@ -346,7 +346,7 @@ if counter > 0 and not st.session_state.get("refresh_mode"):
         else:
             st.session_state.refresh_mode = ""
         if st.session_state.refresh_mode:
-            st.session_state.auto_interval = random.randint(15 * 60 * 1000, 40 * 60 * 1000)
+            st.session_state.auto_interval = 60000
             st.rerun()
 
 def get_sol_price():
@@ -634,7 +634,7 @@ def color_skr(val):
         return 'background-color: #87cefa; color: black'
 
 _timer_html = ' ⏱ <span id="t">—</span>' if st.session_state.get("auto_full", False) or st.session_state.get("auto_refresh", True) else ''
-_next_ts = int(time.time()) + st.session_state.get("auto_interval", 1800000) // 1000 + 1
+_next_ts = int(time.time()) + st.session_state.get("auto_interval", 60000) // 1000 + 1
 st.components.v1.html(
     f'<div style="font-size:1.8rem;font-weight:700;color:#cfe6e4;font-family:system-ui;line-height:1.3">'
     f'📲{_timer_html}</div>'
