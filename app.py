@@ -359,22 +359,36 @@ if counter > 0 and not st.session_state.get("refresh_mode"):
             st.rerun()
 
 def get_sol_price():
-    try:
-        res = requests.get("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd", headers={"User-Agent": _price_ua}, timeout=random.randint(3, 10))
-        return float(res.json().get("solana", {}).get("usd", 0))
-    except Exception as e:
-        print(f"⚠️ Ошибка получения цены SOL: {e}", file=sys.stderr)
-        return 0.0
+    for attempt in range(3):
+        try:
+            res = requests.get("https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd", headers={"User-Agent": _price_ua}, timeout=random.randint(3, 10))
+            if res.status_code != 200:
+                raise RuntimeError(f"HTTP {res.status_code}")
+            price = float(res.json().get("solana", {}).get("usd", 0))
+            if price > 0:
+                return price
+        except Exception as e:
+            print(f"⚠️ [SOL price] попытка {attempt+1}/3: {e}", file=sys.stderr)
+        if attempt < 2:
+            time.sleep(random.uniform(1, 3))
+    return 0.0
 
 def get_skr_price():
-    try:
-        url = "https://api.coingecko.com/api/v3/simple/token_price/solana"
-        params = {"contract_addresses": SKR_MINT, "vs_currencies": "usd"}
-        res = requests.get(url, params=params, headers={"User-Agent": _price_ua}, timeout=random.randint(3, 10))
-        return float(res.json().get(SKR_MINT, {}).get("usd", 0))
-    except Exception as e:
-        print(f"⚠️ Ошибка получения цены SKR: {e}", file=sys.stderr)
-        return 0.0
+    for attempt in range(3):
+        try:
+            url = "https://api.coingecko.com/api/v3/simple/token_price/solana"
+            params = {"contract_addresses": SKR_MINT, "vs_currencies": "usd"}
+            res = requests.get(url, params=params, headers={"User-Agent": _price_ua}, timeout=random.randint(3, 10))
+            if res.status_code != 200:
+                raise RuntimeError(f"HTTP {res.status_code}")
+            price = float(res.json().get(SKR_MINT, {}).get("usd", 0))
+            if price > 0:
+                return price
+        except Exception as e:
+            print(f"⚠️ [SKR price] попытка {attempt+1}/3: {e}", file=sys.stderr)
+        if attempt < 2:
+            time.sleep(random.uniform(1, 3))
+    return 0.0
 
 def _rpc_with_retry(payload, ua_string=None, max_retries=3, delay=0.5):
     ua = ua_string or _DEF_UA
@@ -676,7 +690,7 @@ try:
             st.session_state.cached_skr_price = pc.get("skr", 0) or None
 except Exception as e:
     print(f"⚠️ [load PRICES_FILE]: {e}", file=sys.stderr)
-if not st.session_state.get("cached_sol_price") and "p" in st.query_params:
+if "p" in st.query_params:
     try:
         _qp_p = json.loads(st.query_params["p"])
         if not st.session_state.get("last_full"):
