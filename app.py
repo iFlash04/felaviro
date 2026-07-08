@@ -332,7 +332,7 @@ if not saved and "d" not in st.query_params and not st.session_state.get("refres
 
 if "_auto_inited" not in st.session_state:
     st.session_state._auto_inited = True
-    st.session_state.auto_interval = random.randint(15 * 60 * 1000, 40 * 60 * 1000)
+    st.session_state.auto_interval = 2 * 60 * 1000
 counter = st_autorefresh(interval=st.session_state.auto_interval, key="refresh_key")
 if counter > 0 and not st.session_state.get("refresh_mode"):
     if counter != st.session_state.get("_last_auto_counter", 0):
@@ -346,7 +346,7 @@ if counter > 0 and not st.session_state.get("refresh_mode"):
         else:
             st.session_state.refresh_mode = ""
         if st.session_state.refresh_mode:
-            st.session_state.auto_interval = random.randint(15 * 60 * 1000, 40 * 60 * 1000)
+            st.session_state.auto_interval = 2 * 60 * 1000
             st.rerun()
 
 def get_sol_price():
