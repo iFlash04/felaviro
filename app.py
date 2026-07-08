@@ -411,35 +411,7 @@ def _rpc_with_retry(payload, ua_string=None, max_retries=3, delay=0.5):
                 time.sleep(random.uniform(0.1, 2.5))
     return None
 
-def get_skr_balance(address, ua_string):
-    try:
-        payload = {"jsonrpc": "2.0", "id": 1, "method": "getTokenAccountsByOwner",
-                  "params": [address, {"mint": SKR_MINT}, {"encoding": "jsonParsed"}]}
-        response = _rpc_with_retry(payload, ua_string)
-        if response and "result" in response and response["result"].get("value"):
-            return sum(float(x["account"]["data"]["parsed"]["info"]["tokenAmount"]["uiAmount"]) for x in response["result"]["value"])
-    except Exception as e:
-        print(f"⚠️ [get_skr_balance]: {e}", file=sys.stderr)
-    return 0.0
-
-def get_skr_staked(address, ua_string):
-    try:
-        filters = [{"memcmp": {"offset": 41, "bytes": address}}]
-        payload = {"jsonrpc": "2.0", "id": 1, "method": "getProgramAccounts",
-                 "params": [SKR_STAKING_PROGRAM, {"encoding": "base64", "filters": filters}]}
-        response = _rpc_with_retry(payload, ua_string)
-        if response and "result" in response and response["result"]:
-            total_raw = 0
-            for acc in response["result"]:
-                raw_data = base64.b64decode(acc["account"]["data"][0])
-                total_raw += int.from_bytes(raw_data[104:112], "little")
-            if total_raw > 0:
-                return total_raw / SKR_DIVISOR, total_raw
-    except Exception as e:
-        print(f"⚠️ Ошибка get_skr_staked({address[:8]}...): {e}", file=sys.stderr)
-    return 0.0, 0
-
-def get_data(address, ua, log_callback=None):
+def get_txs_only(address, ua, log_callback=None):
     def log(msg):
         if log_callback:
             log_callback(msg)
@@ -449,69 +421,51 @@ def get_data(address, ua, log_callback=None):
     delay = random.uniform(0.05, 1.5)
     time.sleep(delay)
     log(f"  ⏳ старт (+{delay:.2f}s)")
-    sol_bal, skr_bal, stake_sol, skr_staked, txs = 0.0, 0.0, 0.0, 0.0, 0
     try:
         pubkey = Pubkey.from_string(address)
-        queries = ['balance', 'sigs', 'skr', 'stake']
-        random.shuffle(queries)
-        for q in queries:
-            if q == 'balance':
-                start = time.time()
-                sol_bal = 0.0
-                for attempt in range(3):
-                    try:
-                        sol_bal = client.get_balance(pubkey).value / 10**9
-                        elapsed = time.time() - start
-                        log(f"  🌐 solanaRPC ({elapsed:.2f}s)")
-                        break
-                    except Exception as e:
-                        if attempt < 2:
-                            time.sleep(random.uniform(0.5, 2.0))
-                            continue
-                        elapsed = time.time() - start
-                        log(f"  ❌ Error: {e} ({elapsed:.2f}s)")
-                delay = random.uniform(0.05, 0.3)
-                time.sleep(delay)
-                log(f"  ✅ {q}: {sol_bal:.4f} SOL (+{delay:.2f}s)")
-            elif q == 'sigs':
-                start = time.time()
-                sigs = []
-                for attempt in range(3):
-                    try:
-                        sigs = client.get_signatures_for_address(pubkey, limit=random.randint(105, 150)).value
-                        elapsed = time.time() - start
-                        log(f"  🌐 solanaRPC ({elapsed:.2f}s)")
-                        break
-                    except Exception as e:
-                        if attempt < 2:
-                            time.sleep(random.uniform(0.5, 2.0))
-                            continue
-                        elapsed = time.time() - start
-                        log(f"  ❌ Error: {e} ({elapsed:.2f}s)")
-                today = _now().replace(hour=0, minute=0, second=0, microsecond=0)
-                txs = sum(1 for tx in sigs if ((datetime.utcfromtimestamp(tx.block_time)) if tx.block_time else _now()) >= today)
-                delay = random.uniform(0.05, 0.3)
-                time.sleep(delay)
-                log(f"  ✅ {q}: {txs} TX (+{delay:.2f}s)")
-            elif q == 'skr':
-                skr_bal = get_skr_balance(address, ua)
-                delay = random.uniform(0.05, 0.3)
-                time.sleep(delay)
-                log(f"  ✅ {q}: {skr_bal:.2f} SKR (+{delay:.2f}s)")
-            elif q == 'stake':
-                payload = {"jsonrpc": "2.0", "id": 1, "method": "getProgramAccounts",
-                         "params": ["Stake11111111111111111111111111111111111111",
-                                  {"encoding": "jsonParsed", "filters": [{"memcmp": {"offset": 12, "bytes": address}}]}]}
-                st_res = _rpc_with_retry(payload, ua)
-                if st_res and "result" in st_res and st_res["result"]:
-                    stake_sol = sum(acc["account"]["lamports"] for acc in st_res["result"]) / 10**9
-                    delay = random.uniform(0.05, 0.3)
-                    time.sleep(delay)
-                    log(f"  ✅ {q}: {stake_sol:.4f} SOL (+{delay:.2f}s)")
-        skr_staked, raw_stake_shares = get_skr_staked(address, ua)
-        delay = random.uniform(0.05, 0.3)
-        time.sleep(delay)
-        log(f"  ✅ stake_skr: {skr_staked:.2f} (raw: {raw_stake_shares}) (+{delay:.2f}s)")
+        addr_str = str(pubkey)
+        sigs_limit = random.randint(105, 150)
+        payloads = [
+            {"jsonrpc": "2.0", "id": 1, "method": "getBalance", "params": [addr_str]},
+            {"jsonrpc": "2.0", "id": 2, "method": "getSignaturesForAddress", "params": [addr_str, {"limit": sigs_limit}]},
+            {"jsonrpc": "2.0", "id": 3, "method": "getTokenAccountsByOwner", "params": [address, {"mint": SKR_MINT}, {"encoding": "jsonParsed"}]},
+            {"jsonrpc": "2.0", "id": 4, "method": "getProgramAccounts", "params": ["Stake11111111111111111111111111111111111111", {"encoding": "jsonParsed", "filters": [{"memcmp": {"offset": 12, "bytes": address}}]}]},
+            {"jsonrpc": "2.0", "id": 5, "method": "getProgramAccounts", "params": [SKR_STAKING_PROGRAM, {"encoding": "base64", "filters": [{"memcmp": {"offset": 41, "bytes": address}}]}]},
+        ]
+        start = time.time()
+        results = _rpc_with_retry(payloads, ua)
+        elapsed = time.time() - start
+        log(f"  🌐 batch ({elapsed:.2f}s)")
+        sol_bal = skr_bal = stake_sol = skr_staked = 0.0
+        raw_stake_shares = txs = 0
+        if results and isinstance(results, list):
+            for r in results:
+                rid = r.get("id")
+                if "error" in r:
+                    log(f"  ⚠️ id={rid}: {r['error']['message']}")
+                    continue
+                if rid == 1:
+                    sol_bal = r["result"]["value"] / 10**9
+                elif rid == 2:
+                    sigs = r.get("result", [])
+                    today = _now().replace(hour=0, minute=0, second=0, microsecond=0)
+                    txs = sum(1 for tx in sigs if ((datetime.utcfromtimestamp(tx["blockTime"])) if tx.get("blockTime") else _now()) >= today)
+                elif rid == 3:
+                    accounts = r.get("result", {}).get("value", [])
+                    skr_bal = sum(float(x["account"]["data"]["parsed"]["info"]["tokenAmount"]["uiAmount"]) for x in accounts)
+                elif rid == 4:
+                    accounts = r.get("result", [])
+                    stake_sol = sum(acc["account"]["lamports"] for acc in accounts) / 10**9
+                elif rid == 5:
+                    accounts = r.get("result", [])
+                    total_raw = 0
+                    for acc in accounts:
+                        raw_data = base64.b64decode(acc["account"]["data"][0])
+                        total_raw += int.from_bytes(raw_data[104:112], "little")
+                    if total_raw > 0:
+                        skr_staked = total_raw / SKR_DIVISOR
+                        raw_stake_shares = total_raw
+        log(f"  ✅ SOL={sol_bal:.4f} SKR={skr_bal:.2f} stake_sol={stake_sol:.4f} stake_skr={skr_staked:.2f} txs={txs}")
         return sol_bal, skr_bal, stake_sol, skr_staked, raw_stake_shares, txs
     except Exception as e:
         log(f"  ❌ Error: {e}")
