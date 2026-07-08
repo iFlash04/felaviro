@@ -753,6 +753,10 @@ with st.sidebar:
         st.checkbox("Авто", value=st.session_state.get("auto_full", False), key="auto_full",
                     help="Приоритет полного обновления над быстрым")
 
+    if st.button("🔄 SKR и стейкинг", width='stretch'):
+        st.session_state.refresh_mode = "skr"
+        st.rerun()
+
     if st.button("🔄 Быстрое обновление", type="primary", width='stretch'):
         st.session_state.refresh_mode = "fast"
         st.rerun()
