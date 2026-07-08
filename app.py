@@ -726,6 +726,22 @@ with st.sidebar:
         auto_full_on = st.session_state.get("auto_full", False)
         st.checkbox(f"Авто (~{mins} мин)", value=st.session_state.get("auto_refresh", True) and not auto_full_on,
                     key="auto_refresh", disabled=auto_full_on)
+        if auto_full_on or st.session_state.get("auto_refresh", True):
+            _next_ts = int(time.time()) + st.session_state.get("auto_interval", 1800000) // 1000 + 1
+            st.markdown(
+                f'<p id="ar-timer" data-n="{_next_ts}" style="font-size:0.75rem;color:#6b7280;text-align:center;margin:0">⏱ —</p>'
+                '<script>'
+                'var _ar=setInterval(function(){'
+                '  var e=document.getElementById("ar-timer");'
+                '  if(!e){clearInterval(_ar);return}'
+                '  var d=parseInt(e.getAttribute("data-n"))-Math.floor(Date.now()/1000);'
+                '  if(d<0){d=0}'
+                '  var m=Math.floor(d/60),s=d%60;'
+                '  e.textContent="⏱ "+m+":"+(s<10?"0":"")+s'
+                '},1000)'
+                '</script>',
+                unsafe_allow_html=True,
+            )
 
     c1, c2 = st.columns(2)
     with c1:
