@@ -734,11 +734,16 @@ with st.sidebar:
                     f'<p id="t" style="font-size:0.75rem;color:#6b7280;text-align:center;margin:0;font-family:monospace">⏱ —</p>'
                     f'<script>'
                     f'var n={_next_ts};'
-                    f'setInterval(function(){{'
-                    f'  var d=Math.max(0,n-Math.floor(Date.now()/1000));'
-                    f'  var m=Math.floor(d/60),s=d%60;'
-                    f'  document.getElementById("t").textContent="⏱ "+m+":"+(s<10?"0":"")+s'
-                    f'}},1000)'
+                    f'function _t(){{'
+                    f'  var e=document.getElementById("t");'
+                    f'  if(!e){{setTimeout(_t,100);return}}'
+                    f'  setInterval(function(){{'
+                    f'    var d=Math.max(0,n-Math.floor(Date.now()/1000));'
+                    f'    var m=Math.floor(d/60),s=d%60;'
+                    f'    e.textContent="⏱ "+m+":"+(s<10?"0":"")+s'
+                    f'  }},1000)'
+                    f'}}'
+                    f'_t()'
                     f'</script>',
                     height=20,
                 )
