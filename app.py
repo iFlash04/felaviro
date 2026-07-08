@@ -19,7 +19,6 @@ from solders.pubkey import Pubkey
 from datetime import datetime, time as dt_time, timedelta, timezone
 from streamlit_autorefresh import st_autorefresh
 from dotenv import load_dotenv
-from fake_useragent import UserAgent
 
 load_dotenv(ENV_FILE)
 
@@ -179,11 +178,46 @@ SKR_MINT = "SKRbvo6Gf7GondiT3BbTfuRDPqLWei4j2Qy2NPGZhW3"
 SKR_STAKING_PROGRAM = "SKRskrmtL83pcL4YqLWt6iPefDqwXQWHSw9S9vz94BZ"
 DATA_FILE = os.path.join(BASE_DIR, "data", "farm_data.json")
 STATE_FILE = os.path.join(BASE_DIR, "data", "state_txs.json")
-UA_FILE = os.path.join(BASE_DIR, "data", "wallet_agents.json")
 CONFIG_FILE = os.path.join(BASE_DIR, "data", "config.json")
 PRICES_FILE = os.path.join(BASE_DIR, "data", "prices.json")
 _price_ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
 _DEF_UA = _price_ua
+
+UA_POOL = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36 OPR/117.0.0.0",
+    "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 18_4_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/135.0.7049.53 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (Linux; Android 5.0; SM-G900P Build/LRX21T) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.2255.1464 Mobile Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 18_3_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3.1 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.3381.1674 Mobile Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 18_3_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/135.0.7049.83 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (Linux; Android 5.0; SM-G900P Build/LRX21T) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/45.0.9121.1581 Mobile Safari/537.36",
+    "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Mobile Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 18_3_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/FBIOS;FBAV/501.2.0.65.109;FBBV/717317385;FBDV/iPhone12,8;FBMD/iPhone;FBSN/iOS;FBSV/18.3.2;FBSS/2;FBCR/;FBID/phone;FBLC/en_US;FBOP/80]",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 18_3_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) GSA/363.0.743255906 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (Linux; Android 8.0; Pixel 2 Build/OPD3.170816.012) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.4245.1773 Mobile Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 18_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (Linux; Android 5.0; SM-G900P Build/LRX21T) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.8128.1783 Mobile Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.6469.1272 Mobile Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.3108.1882 Mobile Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 18_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) GSA/363.0.743255906 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 16_7_10 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) GSA/363.0.743255906 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.5095.1183 Mobile Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/135.0.7049.53 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/137.0  Mobile/15E148 Safari/605.1.15",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36",
+]
+
+def _ua_for_wallet(address, salt=0):
+    return UA_POOL[hash(address + str(salt)) % len(UA_POOL)]
 
 if os.path.exists(CONFIG_FILE):
     try:
@@ -238,32 +272,6 @@ def save_state(state):
             json.dump(state, f)
     except Exception as e:
         print(f"⚠️ [save_state]: {e}", file=sys.stderr)
-
-def load_agents():
-    try:
-        if os.path.exists(UA_FILE):
-            with open(UA_FILE, 'r') as f:
-                return json.load(f)
-    except Exception as e:
-        print(f"⚠️ [load_agents]: {e}", file=sys.stderr)
-    return {}
-
-def save_agents(agents):
-    try:
-        os.makedirs(os.path.dirname(UA_FILE), exist_ok=True)
-        with open(UA_FILE, 'w') as f:
-            json.dump(agents, f)
-    except Exception as e:
-        print(f"⚠️ [save_agents]: {e}", file=sys.stderr)
-
-def init_agents(wallets):
-    agents = load_agents()
-    ua = UserAgent(fallback=_DEF_UA)
-    for addr in wallets:
-        if addr not in agents:
-            agents[addr] = ua.random
-    save_agents(agents)
-    return agents
 
 def load_data():
     try:
@@ -336,6 +344,8 @@ if not saved and "d" not in st.query_params and not st.session_state.get("refres
 if "_auto_inited" not in st.session_state:
     st.session_state._auto_inited = True
     st.session_state.auto_interval = random.randint(15 * 60 * 1000, 40 * 60 * 1000)
+if "ua_salt" not in st.session_state:
+    st.session_state.ua_salt = 0
 counter = st_autorefresh(interval=st.session_state.auto_interval, key="refresh_key")
 if counter > 0 and not st.session_state.get("refresh_mode"):
     if counter != st.session_state.get("_last_auto_counter", 0):
@@ -420,13 +430,12 @@ def get_skr_staked(address, ua_string):
         print(f"⚠️ Ошибка get_skr_staked({address[:8]}...): {e}", file=sys.stderr)
     return 0.0, 0
 
-def get_data(address, wallet_agents, log_callback=None):
+def get_data(address, ua, log_callback=None):
     def log(msg):
         if log_callback:
             log_callback(msg)
         else:
             print(msg)
-    ua = wallet_agents.get(address, _DEF_UA)
     log(f"🔄 {address[:8]}... UA: {ua[:40]}...")
     delay = random.uniform(0.05, 1.5)
     time.sleep(delay)
@@ -499,13 +508,12 @@ def get_data(address, wallet_agents, log_callback=None):
         log(f"  ❌ Error: {e}")
         return 0.0, 0.0, 0.0, 0.0, 0, 0
 
-def get_txs_only(address, wallet_agents, log_callback=None):
+def get_txs_only(address, ua, log_callback=None):
     def log(msg):
         if log_callback:
             log_callback(msg)
         else:
             print(msg)
-    ua = wallet_agents.get(address, _DEF_UA)
     log(f"🔄 {address[:8]}... UA: {ua[:40]}...")
     delay = random.uniform(0.05, 1.5)
     time.sleep(delay)
@@ -534,13 +542,12 @@ def get_txs_only(address, wallet_agents, log_callback=None):
         log(f"  ❌ Error: {e}")
         return 0
 
-def get_skr_data(address, wallet_agents, saved, log_callback=None):
+def get_skr_data(address, ua, saved, log_callback=None):
     def log(msg):
         if log_callback:
             log_callback(msg)
         else:
             print(msg)
-    ua = wallet_agents.get(address, _DEF_UA)
     log(f"🔄 {address[:8]}... UA: {ua[:40]}...")
     delay = random.uniform(0.05, 1.5)
     time.sleep(delay)
@@ -755,8 +762,7 @@ with st.sidebar:
     c1, c2 = st.columns(2)
     with c1:
         if st.button("🔐 Сменить UA", width='stretch'):
-            if os.path.exists(UA_FILE):
-                os.remove(UA_FILE)
+            st.session_state.ua_salt += 1
             st.rerun()
     with c2:
         blurred = st.session_state.get("blur_table", False)
@@ -809,7 +815,6 @@ skr_price = None
 df = pd.DataFrame()
 
 if wallets:
-    wallet_agents = init_agents(wallets)
     saved_data = load_data()
     if not saved_data and "d" in st.query_params:
         try:
@@ -863,7 +868,7 @@ if wallets:
                 prev_totals[addr] = p.get("prev_total", p.get("SKR", 0) + p.get("stake_skr", 0))
         with st.spinner('📡 Обновление всех данных и их кеширование...'):
             with ThreadPoolExecutor(max_workers=random.randint(1, 4)) as executor:
-                futures = {executor.submit(get_data, addr, wallet_agents): (i, addr) for i, addr in enumerate(wallets)}
+                futures = {executor.submit(get_data, addr, _ua_for_wallet(addr, st.session_state.ua_salt)): (i, addr) for i, addr in enumerate(wallets)}
 
                 completed = 0
                 for future in as_completed(futures):
@@ -905,7 +910,7 @@ if wallets:
         st.caption("🔧 Пересчёт SKR и стейкинга")
         with st.spinner('Обновление SKR...'):
             with ThreadPoolExecutor(max_workers=random.randint(1, 4)) as executor:
-                futures = {executor.submit(get_skr_data, addr, wallet_agents, saved_data): (i, addr) for i, addr in enumerate(wallets)}
+                futures = {executor.submit(get_skr_data, addr, _ua_for_wallet(addr, st.session_state.ua_salt), saved_data): (i, addr) for i, addr in enumerate(wallets)}
 
                 completed = 0
                 for future in as_completed(futures):
@@ -962,7 +967,7 @@ if wallets:
         st.caption("🔄 Режим быстрого обновления (только транзакции)")
         with st.spinner('Проверка транзакций...'):
             with ThreadPoolExecutor(max_workers=random.randint(1, 4)) as executor:
-                futures = {executor.submit(get_txs_only, addr, wallet_agents): (i, addr) for i, addr in enumerate(wallets)}
+                futures = {executor.submit(get_txs_only, addr, _ua_for_wallet(addr, st.session_state.ua_salt)): (i, addr) for i, addr in enumerate(wallets)}
 
                 completed = 0
                 for future in as_completed(futures):
