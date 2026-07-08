@@ -1061,11 +1061,6 @@ with st.sidebar:
         os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
         with open(CONFIG_FILE, "w") as f:
             json.dump(cfg, f)
-        try:
-            for k, v in cfg.items():
-                st.query_params[k] = str(v)
-        except Exception as e:
-            print(f"⚠️ [set query params config]: {e}", file=sys.stderr)
 
     lskr = df['SKR'].sum() if 'SKR' in df.columns else 0
     sskr = df['stake_skr'].sum() if 'stake_skr' in df.columns else 0
