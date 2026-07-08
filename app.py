@@ -728,19 +728,17 @@ with st.sidebar:
                     key="auto_refresh", disabled=auto_full_on)
         if auto_full_on or st.session_state.get("auto_refresh", True):
             _next_ts = int(time.time()) + st.session_state.get("auto_interval", 1800000) // 1000 + 1
-            st.markdown(
-                f'<p id="ar-timer" data-n="{_next_ts}" style="font-size:0.75rem;color:#6b7280;text-align:center;margin:0">⏱ —</p>'
-                '<script>'
-                'var _ar=setInterval(function(){'
-                '  var e=document.getElementById("ar-timer");'
-                '  if(!e){clearInterval(_ar);return}'
-                '  var d=parseInt(e.getAttribute("data-n"))-Math.floor(Date.now()/1000);'
-                '  if(d<0){d=0}'
-                '  var m=Math.floor(d/60),s=d%60;'
-                '  e.textContent="⏱ "+m+":"+(s<10?"0":"")+s'
-                '},1000)'
-                '</script>',
-                unsafe_allow_html=True,
+            st.components.v1.html(
+                f'<p id="t" style="font-size:0.75rem;color:#6b7280;text-align:center;margin:0;font-family:monospace">⏱ —</p>'
+                f'<script>'
+                f'var n={_next_ts};'
+                f'setInterval(function(){{'
+                f'  var d=Math.max(0,n-Math.floor(Date.now()/1000));'
+                f'  var m=Math.floor(d/60),s=d%60;'
+                f'  document.getElementById("t").textContent="⏱ "+m+":"+(s<10?"0":"")+s'
+                f'}},1000)'
+                f'</script>',
+                height=20,
             )
 
     c1, c2 = st.columns(2)
