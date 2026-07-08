@@ -183,6 +183,7 @@ UA_FILE = os.path.join(BASE_DIR, "data", "wallet_agents.json")
 CONFIG_FILE = os.path.join(BASE_DIR, "data", "config.json")
 PRICES_FILE = os.path.join(BASE_DIR, "data", "prices.json")
 _price_ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+_DEF_UA = _price_ua
 
 if os.path.exists(CONFIG_FILE):
     try:
@@ -257,7 +258,7 @@ def save_agents(agents):
 
 def init_agents(wallets):
     agents = load_agents()
-    ua = UserAgent()
+    ua = UserAgent(fallback=_DEF_UA)
     for addr in wallets:
         if addr not in agents:
             agents[addr] = ua.random
@@ -371,7 +372,7 @@ def get_skr_price():
         return 0.0
 
 def _rpc_with_retry(payload, ua_string=None, max_retries=3, delay=0.5):
-    ua = ua_string or UserAgent().random
+    ua = ua_string or _DEF_UA
     for attempt in range(max_retries):
         start = time.time()
         try:
@@ -425,7 +426,7 @@ def get_data(address, wallet_agents, log_callback=None):
             log_callback(msg)
         else:
             print(msg)
-    ua = wallet_agents.get(address, UserAgent().random)
+    ua = wallet_agents.get(address, _DEF_UA)
     log(f"🔄 {address[:8]}... UA: {ua[:40]}...")
     delay = random.uniform(0.05, 1.5)
     time.sleep(delay)
@@ -504,7 +505,7 @@ def get_txs_only(address, wallet_agents, log_callback=None):
             log_callback(msg)
         else:
             print(msg)
-    ua = wallet_agents.get(address, UserAgent().random)
+    ua = wallet_agents.get(address, _DEF_UA)
     log(f"🔄 {address[:8]}... UA: {ua[:40]}...")
     delay = random.uniform(0.05, 1.5)
     time.sleep(delay)
@@ -539,7 +540,7 @@ def get_skr_data(address, wallet_agents, saved, log_callback=None):
             log_callback(msg)
         else:
             print(msg)
-    ua = wallet_agents.get(address, UserAgent().random)
+    ua = wallet_agents.get(address, _DEF_UA)
     log(f"🔄 {address[:8]}... UA: {ua[:40]}...")
     delay = random.uniform(0.05, 1.5)
     time.sleep(delay)
