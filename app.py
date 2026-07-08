@@ -16,15 +16,17 @@ WALLETS_FILE = os.path.join(BASE_DIR, "data", "wallets.txt")
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from solana.rpc.api import Client
 from solders.pubkey import Pubkey
-from datetime import datetime, time as dt_time, timedelta
+from datetime import datetime, time as dt_time, timedelta, timezone
 from streamlit_autorefresh import st_autorefresh
 from dotenv import load_dotenv
 from fake_useragent import UserAgent
 
 load_dotenv(ENV_FILE)
 
+MSK = timezone(timedelta(hours=3))
+
 def _now():
-    return datetime.utcnow() + timedelta(hours=3)
+    return datetime.now(MSK)
 
 st.markdown("""
 <style>
@@ -352,7 +354,8 @@ if counter > 0 and not st.session_state.get("refresh_mode"):
 def get_sol_price():
     try:
         res = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=SOLUSDT", headers={"User-Agent": _price_ua}, timeout=random.randint(3, 10))
-        return float(res.json()['price'])
+        data = res.json()
+        return float(data.get("price", 0))
     except Exception as e:
         print(f"⚠️ Ошибка получения цены SOL: {e}", file=sys.stderr)
         return 0.0
@@ -466,8 +469,8 @@ def get_data(address, wallet_agents, log_callback=None):
                             continue
                         elapsed = time.time() - start
                         log(f"  ❌ Error: {e} ({elapsed:.2f}s)")
-                today = datetime.combine(_now().date(), dt_time.min)
-                txs = sum(1 for tx in sigs if ((datetime.utcfromtimestamp(tx.block_time) + timedelta(hours=3)) if tx.block_time else _now()) >= today)
+                today = _now().replace(hour=0, minute=0, second=0, microsecond=0)
+                txs = sum(1 for tx in sigs if ((datetime.fromtimestamp(tx.block_time, tz=MSK)) if tx.block_time else _now()) >= today)
                 delay = random.uniform(0.05, 0.3)
                 time.sleep(delay)
                 log(f"  ✅ {q}: {txs} TX (+{delay:.2f}s)")
@@ -522,8 +525,8 @@ def get_txs_only(address, wallet_agents, log_callback=None):
                     continue
                 elapsed = time.time() - start
                 log(f"  ❌ Error: {e} ({elapsed:.2f}s)")
-        today = datetime.combine(_now().date(), dt_time.min)
-        txs = sum(1 for tx in sigs if ((datetime.utcfromtimestamp(tx.block_time) + timedelta(hours=3)) if tx.block_time else _now()) >= today)
+        today = _now().replace(hour=0, minute=0, second=0, microsecond=0)
+        txs = sum(1 for tx in sigs if ((datetime.fromtimestamp(tx.block_time, tz=MSK)) if tx.block_time else _now()) >= today)
         log(f"  ✅ TX: {txs}")
         return txs
     except Exception as e:
@@ -684,7 +687,7 @@ if not st.session_state.get("cached_sol_price") and "p" in st.query_params:
         print(f"⚠️ [load query params p]: {e}", file=sys.stderr)
 
 with st.sidebar:
-    st.image("media/logo.webp", use_container_width=True)
+    st.image("media/logo.webp", width='stretch')
     st.markdown("<h2 style='text-align:center;margin-bottom:0'>  Панель управления</h2>", unsafe_allow_html=True)
     st.markdown("---")
 
@@ -717,7 +720,7 @@ with st.sidebar:
             return f"{int(secs/3600)} ч назад"
         return f"{int(secs/86400)} дн назад"
 
-    if st.button("📡 Полное обновление", type="primary", use_container_width=True):
+    if st.button("📡 Полное обновление", type="primary", width='stretch'):
         st.session_state.refresh_mode = "full"
         if os.path.exists(DATA_FILE):
             os.remove(DATA_FILE)
@@ -733,7 +736,7 @@ with st.sidebar:
         st.checkbox("Авто", value=st.session_state.get("auto_full", False), key="auto_full",
                     help="Приоритет полного обновления над быстрым")
 
-    if st.button("🔄 Быстрое обновление", type="primary", use_container_width=True):
+    if st.button("🔄 Быстрое обновление", type="primary", width='stretch'):
         st.session_state.refresh_mode = "fast"
         st.rerun()
     ss = _ago(st.session_state.get("last_fast"))
@@ -750,13 +753,13 @@ with st.sidebar:
 
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("🔐 Сменить UA", use_container_width=True):
+        if st.button("🔐 Сменить UA", width='stretch'):
             if os.path.exists(UA_FILE):
                 os.remove(UA_FILE)
             st.rerun()
     with c2:
         blurred = st.session_state.get("blur_table", False)
-        if st.button("👁️ Скрыть" if not blurred else "👁️ Показать", use_container_width=True):
+        if st.button("👁️ Скрыть" if not blurred else "👁️ Показать", width='stretch'):
             st.session_state.blur_table = not blurred
             st.rerun()
 
@@ -1249,7 +1252,7 @@ with st.sidebar:
                 with cal_col1:
                         st.caption(f"Новый множитель: {new_div:,.0f}")
                 with cal_col2:
-                    if st.button("💾 Сохранить множитель", use_container_width=True):
+                    if st.button("💾 Сохранить множитель", width='stretch'):
                         try:
                             st.query_params["skr_divisor"] = str(int(new_div))
                         except Exception as e:
@@ -1343,18 +1346,18 @@ with st.sidebar:
         c1, c2 = st.columns(2)
         with c1:
             if not edit:
-                if st.button("✏️ Редактировать", key="start_edit", use_container_width=True):
+                if st.button("✏️ Редактировать", key="start_edit", width='stretch'):
                     st.session_state.edit_legend = True
                     for k in DEFAULTS:
                         st.session_state.pop(f"wg_{k}", None)
                     st.rerun()
             else:
-                if st.button("💾 Сохранить", key="save_th", use_container_width=True):
+                if st.button("💾 Сохранить", key="save_th", width='stretch'):
                     _save_config()
                     st.session_state.edit_legend = False
                     st.rerun()
         with c2:
-            if st.button("↺ Сбросить", key="reset_th", use_container_width=True):
+            if st.button("↺ Сбросить", key="reset_th", width='stretch'):
                 for k, v in HARD_DEFAULTS.items():
                     st.session_state[k] = v
                     st.session_state.pop(f"wg_{k}", None)
