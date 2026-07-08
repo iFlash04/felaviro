@@ -723,24 +723,23 @@ with st.sidebar:
         )
     with c2:
         auto_full_on = st.session_state.get("auto_full", False)
-        c21, c22 = st.columns([1, 1])
-        with c21:
-            st.checkbox("Авто", value=st.session_state.get("auto_refresh", True) and not auto_full_on,
-                        key="auto_refresh", disabled=auto_full_on)
-        with c22:
-            if auto_full_on or st.session_state.get("auto_refresh", True):
-                _next_ts = int(time.time()) + st.session_state.get("auto_interval", 1800000) // 1000 + 1
-                st.markdown(
-                    f'<span style="font-size:0.75rem;color:#6b7280;font-family:monospace">⏱ <span id="t">—</span></span>'
-                    f'<img src=x style="display:none" onerror="var n={_next_ts};'
-                    f'setInterval(function(){{'
-                    f'var e=document.getElementById(\'t\');'
-                    f'if(!e)return;'
-                    f'var d=Math.max(0,n-Math.floor(Date.now()/1000));'
-                    f'e.textContent=Math.floor(d/60)+\':\'+(d%60<10?\'0\':\'\')+Math.floor(d%60)'
-                    f'}},500)">',
-                    unsafe_allow_html=True,
-                )
+        st.checkbox("Авто", value=st.session_state.get("auto_refresh", True) and not auto_full_on,
+                    key="auto_refresh", disabled=auto_full_on)
+        if auto_full_on or st.session_state.get("auto_refresh", True):
+            _next_ts = int(time.time()) + st.session_state.get("auto_interval", 1800000) // 1000 + 1
+            st.components.v1.html(
+                f'<div style="font-size:0.75rem;color:#6b7280;text-align:center;font-family:monospace">'
+                f'⏱ <span id="t">—</span></div>'
+                f'<script>'
+                f'var n={_next_ts};'
+                f'var e=document.getElementById("t");'
+                f'setInterval(function(){{'
+                f'var d=Math.max(0,n-Math.floor(Date.now()/1000));'
+                f'e.textContent=Math.floor(d/60)+":"+(d%60<10?"0":"")+Math.floor(d%60)'
+                f'}},500)'
+                f'</script>',
+                height=25,
+            )
 
     c1, c2 = st.columns(2)
     with c1:
