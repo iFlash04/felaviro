@@ -182,7 +182,7 @@ STATE_FILE = os.path.join(BASE_DIR, "data", "state_txs.json")
 UA_FILE = os.path.join(BASE_DIR, "data", "wallet_agents.json")
 CONFIG_FILE = os.path.join(BASE_DIR, "data", "config.json")
 PRICES_FILE = os.path.join(BASE_DIR, "data", "prices.json")
-_price_ua = UserAgent().random
+_price_ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
 
 if os.path.exists(CONFIG_FILE):
     try:
