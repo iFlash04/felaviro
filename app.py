@@ -1365,9 +1365,9 @@ with st.sidebar:
     with st.expander("🎨 Оформление", expanded=False):
         col1, col2 = st.columns(2)
         with col1:
-            st.color_picker("Фон строк", st.session_state.get("row_bg", "#7d91a6"), key="row_bg")
+            st.session_state.row_bg = st.color_picker("Фон строк", st.session_state.get("row_bg", "#7d91a6"))
         with col2:
-            st.color_picker("Текст", st.session_state.get("row_tx", "#000000"), key="row_tx")
+            st.session_state.row_tx = st.color_picker("Текст", st.session_state.get("row_tx", "#000000"))
         hide_vid = st.session_state.get("hide_bg_video", False)
         if st.button("🎬 Фон OFF" if not hide_vid else "🎬 Фон ON", key="toggle_bg"):
             new_val = not hide_vid
