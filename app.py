@@ -1144,6 +1144,8 @@ with st.sidebar:
     with c1:
         st.metric("💎 Всего SKR", f"{round(total_skr, 1)}", help=skr_usd_help)
         st.markdown(f"<div style='line-height:1.2;margin-top:-12px'><span{skr_liq_title}>┣ Ликв: {round(liquid_skr, 1)}</span><br><span{skr_stk_title}>┗ Стейк: {round(staked_skr, 1)}</span></div>", unsafe_allow_html=True)
+        if skr_price and skr_price > 0:
+            st.markdown(f"<div style='margin-top:4px;font-size:0.85rem'>{_ICON_SKR} ${skr_price:.6f}</div>", unsafe_allow_html=True)
 
     sol_usd_help = f"${round(total_sol_usd, 2)}" if price_val else None
     sol_liq_title = f' title="${round(liquid_sol_usd, 2)}"' if price_val else ""
@@ -1151,19 +1153,13 @@ with st.sidebar:
     with c2:
         st.metric("🧂 Всего SOL", f"{round(total_sol, 3)}", help=sol_usd_help)
         st.markdown(f"<div style='line-height:1.2;margin-top:-12px'><span{sol_liq_title}>┣ Ликв: {round(liquid_sol, 3)}</span><br><span{sol_stk_title}>┗ Стейк: {round(staked_sol, 3)}</span></div>", unsafe_allow_html=True)
+        if price_val:
+            st.markdown(f"<div style='margin-top:4px;font-size:0.85rem'>{_ICON_SOL} ${price_val:.2f}</div>", unsafe_allow_html=True)
 
         total_delta = sum(d.get("delta_skr", 0) for d in data)
     if total_delta:
         st.caption("")
         st.metric("📈 Прирост SKR", f"{total_delta:+.1f}")
-
-    price_parts = []
-    if price_val:
-        price_parts.append(f"{_ICON_SOL} ${price_val:.2f}")
-    if skr_price and skr_price > 0:
-        price_parts.append(f"{_ICON_SKR} ${skr_price:.6f}")
-    if price_parts:
-        st.markdown(f"<div style='text-align:center;font-size:0.75rem;opacity:0.6;margin:6px 0 -4px 0'>{' &nbsp;·&nbsp; '.join(price_parts)}</div>", unsafe_allow_html=True)
 
     st.markdown("---")
     with st.expander("🔐 Управление кошельками", expanded=False):
@@ -1343,4 +1339,4 @@ with st.sidebar:
             st.rerun()
 
     st.markdown("---")
-    st.caption("📦 Версия 4.2.0")
+    st.caption("📦 Версия 4.2.1")
