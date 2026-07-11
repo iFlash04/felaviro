@@ -14,10 +14,10 @@ BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 ENV_FILE = os.path.join(BASE_DIR, ".env")
 WALLETS_FILE = os.path.join(BASE_DIR, "data", "wallets.txt")
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from solana.rpc.api import Client
 from solders.pubkey import Pubkey
 from datetime import datetime, timedelta
 from streamlit_autorefresh import st_autorefresh
+import streamlit.components.v1 as components
 from dotenv import load_dotenv
 
 load_dotenv(ENV_FILE)
@@ -105,7 +105,7 @@ if not st.session_state.get("hide_bg_video"):
 
 def check_first_run():
     try:
-        if st.secrets.get("helius_api_key") and st.secrets.get("wallets"):
+        if st.secrets.get("HELIUS_API_KEY") and st.secrets.get("wallets"):
             return False
     except Exception:
         pass
@@ -164,14 +164,42 @@ if check_first_run():
     setup_form()
     st.stop()
 
-_API_KEY = None
+_API_KEYS = []
 try:
-    _API_KEY = st.secrets.get("helius_api_key") or os.getenv("HELIUS_API_KEY")
+    k1 = st.secrets.get("HELIUS_API_KEY") or os.getenv("HELIUS_API_KEY")
+    if k1:
+        _API_KEYS.append(k1)
+except Exception:
+    k1 = os.getenv("HELIUS_API_KEY")
+    if k1:
+        _API_KEYS.append(k1)
+
+_RPC_BASE = None
+try:
     _RPC_BASE = st.secrets.get("rpc_url") or os.getenv("RPC_URL", "https://mainnet.helius-rpc.com")
 except Exception:
-    _API_KEY = os.getenv("HELIUS_API_KEY")
     _RPC_BASE = os.getenv("RPC_URL", "https://mainnet.helius-rpc.com")
-RPC_URL = f"{_RPC_BASE}/?api-key={_API_KEY}"
+
+_RPC_ENDPOINTS = [f"{_RPC_BASE}/?api-key={k}" for k in _API_KEYS if k]
+
+for var in ["QUICKNODE_URL", "PUBLICNODE_URL"]:
+    try:
+        url = st.secrets.get(var) or os.getenv(var)
+        if url:
+            _RPC_ENDPOINTS.append(url)
+    except Exception:
+        url = os.getenv(var)
+        if url:
+            _RPC_ENDPOINTS.append(url)
+
+if not _RPC_ENDPOINTS:
+    _RPC_ENDPOINTS = ["https://api.mainnet-beta.solana.com"]
+
+_RPC_ENDPOINTS_LIGHT = [e for e in _RPC_ENDPOINTS if "publicnode" not in e.lower()]
+
+def _pick_rpc(light=False):
+    pool = _RPC_ENDPOINTS_LIGHT if light else _RPC_ENDPOINTS
+    return random.choice(pool)
 SKR_MINT = "SKRbvo6Gf7GondiT3BbTfuRDPqLWei4j2Qy2NPGZhW3"
 SKR_STAKING_PROGRAM = "SKRskrmtL83pcL4YqLWt6iPefDqwXQWHSw9S9vz94BZ"
 DATA_FILE = os.path.join(BASE_DIR, "data", "farm_data.json")
@@ -226,27 +254,23 @@ if os.path.exists(CONFIG_FILE):
     except Exception as e:
         print(f"⚠️ Ошибка чтения config.json: {e}", file=sys.stderr)
 
-SKR_DIVISOR = 235767466
-try:
-    SKR_DIVISOR = float(st.secrets.get("skr_divisor", SKR_DIVISOR))
-except Exception:
-    pass
-try:
-    if "skr_divisor" in st.query_params:
-        SKR_DIVISOR = float(st.query_params["skr_divisor"])
-except Exception as e:
-    print(f"⚠️ Ошибка чтения skr_divisor из URL: {e}", file=sys.stderr)
-
-client = Client(RPC_URL)
+SKR_DIVISOR = 231832222
 
 def check_rpc_health():
-    try:
-        client.get_version()
-        return True
-    except Exception as e:
-        st.error(f"❌ Ошибка подключения к RPC: {e}")
-        st.info("Проверьте API ключ в файле .env")
-        return False
+    for rpc_url in _RPC_ENDPOINTS:
+        rpc_label = rpc_url.split("//")[1].split("/")[0].split("?")[0].split(":")[0] if "//" in rpc_url else rpc_url
+        try:
+            res = requests.post(rpc_url, json={"jsonrpc": "2.0", "id": 1, "method": "getVersion"}, headers={"User-Agent": _DEF_UA}, timeout=10)
+            if res.status_code == 200:
+                print(f"  ✅ Health OK: [{rpc_label}]", file=sys.stderr)
+                return True
+            print(f"  ❌ Health fail: [{rpc_label}] {res.status_code}", file=sys.stderr)
+        except Exception:
+            print(f"  ❌ Health fail: [{rpc_label}] timeout/error", file=sys.stderr)
+            continue
+    st.error("❌ Ошибка подключения к RPC: ни один endpoint не ответил")
+    st.info("Проверьте API ключи в файле .env")
+    return False
 
 
 def load_state():
@@ -342,6 +366,7 @@ if not saved and "d" not in st.query_params and not st.session_state.get("refres
 if "_auto_inited" not in st.session_state:
     st.session_state._auto_inited = True
     st.session_state.auto_interval = random.randint(15 * 60 * 1000, 40 * 60 * 1000)
+    st.session_state._auto_start = int(time.time())
 counter = st_autorefresh(interval=st.session_state.auto_interval, key="refresh_key")
 if counter > 0 and not st.session_state.get("refresh_mode"):
     if counter != st.session_state.get("_last_auto_counter", 0):
@@ -356,6 +381,7 @@ if counter > 0 and not st.session_state.get("refresh_mode"):
             st.session_state.refresh_mode = ""
         if st.session_state.refresh_mode:
             st.session_state.auto_interval = random.randint(15 * 60 * 1000, 40 * 60 * 1000)
+            st.session_state._auto_start = int(time.time())
             st.rerun()
 
 def get_sol_price():
@@ -390,25 +416,50 @@ def get_skr_price():
             time.sleep(random.uniform(1, 3))
     return 0.0
 
-def _rpc_with_retry(payload, ua_string=None, max_retries=3, delay=0.5):
+def _rpc_for_wallet(address, salt=""):
+    endpoints = _RPC_ENDPOINTS_LIGHT if ("getProgramAccounts" in salt or "getTokenAccountsByOwner" in salt) else _RPC_ENDPOINTS
+    idx = hash(address + salt) % len(endpoints)
+    return endpoints[idx]
+
+def _maybe_dummy_rpc():
+    if random.random() < 0.4:
+        ua = random.choice(UA_POOL)
+        rpc_url = _pick_rpc()
+        rpc_label = rpc_url.split("//")[1].split("/")[0].split("?")[0].split(":")[0] if "//" in rpc_url else rpc_url
+        method = random.choice(["getSlot", "getEpochInfo", "getBlockHeight", "getFirstAvailableBlock", "getLatestBlockhash", "getTransactionCount"])
+        payload = {"jsonrpc": "2.0", "id": random.randint(10, 99), "method": method, "params": []}
+        try:
+            res = requests.post(rpc_url, json=payload, headers={"User-Agent": ua}, timeout=random.randint(2, 4))
+            print(f"  📡 Dummy: {method} → [{rpc_label}] {res.status_code} ({res.elapsed.total_seconds():.2f}s)", file=sys.stderr)
+        except Exception:
+            print(f"  📡 Dummy: {method} → [{rpc_label}] ❌", file=sys.stderr)
+
+def _rpc_with_retry(payload, address=None, ua_string=None, max_retries=3, delay=0.5):
     ua = ua_string or _DEF_UA
+    method_name = payload.get("method", "") if isinstance(payload, dict) else ""
     for attempt in range(max_retries):
         start = time.time()
         try:
-            response = requests.post(RPC_URL, json=payload, headers={"User-Agent": ua}, timeout=random.randint(5, 20))
+            if attempt == 0 and address:
+                rpc_url = _rpc_for_wallet(address, method_name)
+            else:
+                rpc_url = _pick_rpc(light=("getProgramAccounts" in method_name or "getTokenAccountsByOwner" in method_name))
+            response = requests.post(rpc_url, json=payload, headers={"User-Agent": ua}, timeout=random.randint(3, 5))
             elapsed = time.time() - start
-            log_msg = f"  🌐 RPC: {response.status_code} ({elapsed:.2f}s)"
-            print(log_msg, file=sys.stderr)
-            if response.status_code == 429:
-                print(f"  ⚠️ 429 RATE LIMIT! retry {attempt+1}", file=sys.stderr)
+            rpc_label = rpc_url.split("//")[1].split("/")[0].split("?")[0].split(":")[0] if "//" in rpc_url else rpc_url
+            print(f"  🌐 [{rpc_label}] {method_name} → {response.status_code} ({elapsed:.2f}s)", file=sys.stderr)
+            if response.status_code != 200:
+                print(f"  ⚠️ [{rpc_label}] {method_name} — {response.status_code} retry {attempt+1}/3", file=sys.stderr)
                 time.sleep(random.uniform(0.1, 2.5))
                 continue
             return response.json()
         except Exception as e:
             elapsed = time.time() - start
-            print(f"  ❌ Request failed ({elapsed:.2f}s)", file=sys.stderr)
+            rpc_label = rpc_url.split("//")[1].split("/")[0].split("?")[0].split(":")[0] if "//" in rpc_url else rpc_url
+            print(f"  ❌ [{rpc_label}] {method_name} — Request failed ({elapsed:.2f}s)  🔀 retry {attempt+1}/3", file=sys.stderr)
             if attempt < max_retries - 1:
                 time.sleep(random.uniform(0.1, 2.5))
+    print(f"  💀 [{rpc_label}] {method_name} — все 3 попытки провалены", file=sys.stderr)
     return None
 
 def get_data(address, ua, log_callback=None):
@@ -418,53 +469,63 @@ def get_data(address, ua, log_callback=None):
         else:
             print(msg)
     log(f"🔄 {address[:8]}... UA: {ua[:40]}...")
-    delay = random.uniform(0.05, 1.5)
+    delay = random.uniform(0.1, 3.0)
     time.sleep(delay)
     log(f"  ⏳ старт (+{delay:.2f}s)")
     try:
         pubkey = Pubkey.from_string(address)
         addr_str = str(pubkey)
         sigs_limit = random.randint(105, 150)
-        payloads = [
-            {"jsonrpc": "2.0", "id": 1, "method": "getBalance", "params": [addr_str]},
-            {"jsonrpc": "2.0", "id": 2, "method": "getSignaturesForAddress", "params": [addr_str, {"limit": sigs_limit}]},
-            {"jsonrpc": "2.0", "id": 3, "method": "getTokenAccountsByOwner", "params": [address, {"mint": SKR_MINT}, {"encoding": "jsonParsed"}]},
-            {"jsonrpc": "2.0", "id": 4, "method": "getProgramAccounts", "params": ["Stake11111111111111111111111111111111111111", {"encoding": "jsonParsed", "filters": [{"memcmp": {"offset": 12, "bytes": address}}]}]},
-            {"jsonrpc": "2.0", "id": 5, "method": "getProgramAccounts", "params": [SKR_STAKING_PROGRAM, {"encoding": "base64", "filters": [{"memcmp": {"offset": 41, "bytes": address}}]}]},
-        ]
-        start = time.time()
-        results = _rpc_with_retry(payloads, ua)
-        elapsed = time.time() - start
-        log(f"  🌐 batch ({elapsed:.2f}s)")
-        sol_bal = skr_bal = stake_sol = skr_staked = 0.0
-        raw_stake_shares = txs = 0
-        if results and isinstance(results, list):
-            for r in results:
-                rid = r.get("id")
-                if "error" in r:
-                    log(f"  ⚠️ id={rid}: {r['error']['message']}")
-                    continue
-                if rid == 1:
-                    sol_bal = r["result"]["value"] / 10**9
-                elif rid == 2:
-                    sigs = r.get("result", [])
-                    today = _now().replace(hour=0, minute=0, second=0, microsecond=0)
-                    txs = sum(1 for tx in sigs if ((datetime.utcfromtimestamp(tx["blockTime"])) if tx.get("blockTime") else _now()) >= today)
-                elif rid == 3:
-                    accounts = r.get("result", {}).get("value", [])
-                    skr_bal = sum(float(x["account"]["data"]["parsed"]["info"]["tokenAmount"]["uiAmount"]) for x in accounts)
-                elif rid == 4:
-                    accounts = r.get("result", [])
-                    stake_sol = sum(acc["account"]["lamports"] for acc in accounts) / 10**9
-                elif rid == 5:
-                    accounts = r.get("result", [])
-                    total_raw = 0
-                    for acc in accounts:
-                        raw_data = base64.b64decode(acc["account"]["data"][0])
-                        total_raw += int.from_bytes(raw_data[104:112], "little")
-                    if total_raw > 0:
-                        skr_staked = total_raw / SKR_DIVISOR
-                        raw_stake_shares = total_raw
+        state = {}
+
+        def _step1():
+            r = _rpc_with_retry({"jsonrpc": "2.0", "id": 1, "method": "getBalance", "params": [addr_str]}, address, ua)
+            if r and r.get("result"):
+                state["sol_bal"] = r["result"]["value"] / 10**9
+
+        def _step2():
+            r = _rpc_with_retry({"jsonrpc": "2.0", "id": 2, "method": "getSignaturesForAddress", "params": [addr_str, {"limit": sigs_limit}]}, address, ua)
+            if r:
+                sigs = r.get("result", [])
+                today = _now().replace(hour=0, minute=0, second=0, microsecond=0)
+                state["txs"] = sum(1 for tx in sigs if ((datetime.utcfromtimestamp(tx["blockTime"])) if tx.get("blockTime") else _now()) >= today)
+
+        def _step3():
+            r = _rpc_with_retry({"jsonrpc": "2.0", "id": 3, "method": "getTokenAccountsByOwner", "params": [address, {"mint": SKR_MINT}, {"encoding": "jsonParsed"}]}, address, ua)
+            if r:
+                accounts = r.get("result", {}).get("value", [])
+                state["skr_bal"] = sum(float(x["account"]["data"]["parsed"]["info"]["tokenAmount"]["uiAmount"]) for x in accounts)
+
+        def _step4():
+            r = _rpc_with_retry({"jsonrpc": "2.0", "id": 4, "method": "getProgramAccounts", "params": ["Stake11111111111111111111111111111111111111", {"encoding": "jsonParsed", "filters": [{"memcmp": {"offset": 12, "bytes": address}}]}]}, address, ua)
+            if r:
+                accounts = r.get("result", [])
+                state["stake_sol"] = sum(acc["account"]["lamports"] for acc in accounts) / 10**9
+
+        def _step5():
+            r = _rpc_with_retry({"jsonrpc": "2.0", "id": 5, "method": "getProgramAccounts", "params": [SKR_STAKING_PROGRAM, {"encoding": "base64", "filters": [{"memcmp": {"offset": 41, "bytes": address}}]}]}, address, ua)
+            if r:
+                accounts = r.get("result", [])
+                total_raw = 0
+                for acc in accounts:
+                    raw_data = base64.b64decode(acc["account"]["data"][0])
+                    total_raw += int.from_bytes(raw_data[104:112], "little")
+                if total_raw > 0:
+                    state["skr_staked"] = total_raw / SKR_DIVISOR
+                    state["raw_stake_shares"] = total_raw
+
+        steps = [_step1, _step2, _step3, _step4, _step5]
+        random.shuffle(steps)
+        for step in steps:
+            step()
+            time.sleep(random.uniform(0.05, 0.3))
+
+        sol_bal = state.get("sol_bal", 0.0)
+        skr_bal = state.get("skr_bal", 0.0)
+        stake_sol = state.get("stake_sol", 0.0)
+        skr_staked = state.get("skr_staked", 0.0)
+        raw_stake_shares = state.get("raw_stake_shares", 0)
+        txs = state.get("txs", 0)
         log(f"  ✅ SOL={sol_bal:.4f} SKR={skr_bal:.2f} stake_sol={stake_sol:.4f} stake_skr={skr_staked:.2f} txs={txs}")
         return sol_bal, skr_bal, stake_sol, skr_staked, raw_stake_shares, txs
     except Exception as e:
@@ -478,7 +539,7 @@ def get_txs_only(address, ua, log_callback=None):
         else:
             print(msg)
     log(f"🔄 {address[:8]}... UA: {ua[:40]}...")
-    delay = random.uniform(0.05, 1.5)
+    delay = random.uniform(0.1, 3.0)
     time.sleep(delay)
     log(f"  ⏳ старт (+{delay:.2f}s)")
     try:
@@ -487,10 +548,12 @@ def get_txs_only(address, ua, log_callback=None):
         sigs = []
         for attempt in range(3):
             try:
-                sigs = client.get_signatures_for_address(pubkey, limit=random.randint(105, 150)).value
-                elapsed = time.time() - start
-                log(f"  🌐 solanaRPC ({elapsed:.2f}s)")
-                break
+                payload = {"jsonrpc": "2.0", "id": 1, "method": "getSignaturesForAddress", "params": [str(pubkey), {"limit": random.randint(105, 150)}]}
+                res = _rpc_with_retry(payload, address, ua)
+                if res and "result" in res:
+                    sigs = res["result"]
+                    elapsed = time.time() - start
+                    break
             except Exception as e:
                 if attempt < 2:
                     time.sleep(random.uniform(0.5, 2.0))
@@ -498,7 +561,7 @@ def get_txs_only(address, ua, log_callback=None):
                 elapsed = time.time() - start
                 log(f"  ❌ Error: {e} ({elapsed:.2f}s)")
         today = _now().replace(hour=0, minute=0, second=0, microsecond=0)
-        txs = sum(1 for tx in sigs if ((datetime.utcfromtimestamp(tx.block_time)) if tx.block_time else _now()) >= today)
+        txs = sum(1 for tx in sigs if ((datetime.utcfromtimestamp(tx["blockTime"])) if tx.get("blockTime") else _now()) >= today)
         log(f"  ✅ TX: {txs}")
         return txs
     except Exception as e:
@@ -523,7 +586,7 @@ def color_transactions(val):
 def color_balance(val):
     t = st.session_state
     if val < t.th_sol_low:
-        return 'background-color: #600000; color: #ffffff; font-weight: bold'
+        return 'background-color: #ff4b4b; color: white; font-weight: bold'
     elif t.th_sol_low <= val < t.th_sol_mid:
         return 'background-color: #ffa500; color: black'
     elif t.th_sol_mid <= val < t.th_sol_high:
@@ -582,11 +645,12 @@ def color_skr(val):
         return 'background-color: #87cefa; color: black'
 
 _auto_on = st.session_state.get("auto_full", False) or st.session_state.get("auto_refresh", True)
-_script = ''
 if _auto_on:
     _next_ts = int(time.time()) + st.session_state.get("auto_interval", 1800000) // 1000 + 1
-    _title = '📲 ⏱ <span id="t">—</span>'
-    _script = (
+    components.html(
+        f'<div style="font-size:1.5rem;font-weight:700;color:#cfe6e4;font-family:system-ui;line-height:1.3">'
+        f'📲 ⏱ <span id="t">—</span>'
+        f'</div>'
         f'<script>'
         f'var n={_next_ts};'
         f'setInterval(function(){{'
@@ -595,15 +659,14 @@ if _auto_on:
         f'var d=Math.max(0,n-Math.floor(Date.now()/1000));'
         f'e.textContent=Math.floor(d/60)+":"+(d%60<10?"0":"")+Math.floor(d%60)'
         f'}},500)'
-        f'</script>'
+        f'</script>',
+        height=40,
     )
 else:
-    _title = '📱'
-st.iframe(
-    f'<div style="font-size:1.5rem;font-weight:700;color:#cfe6e4;font-family:system-ui;line-height:1.3">'
-    f'{_title}</div>{_script}',
-    height=45,
-)
+    st.markdown(
+        '<div style="font-size:1.5rem;font-weight:700;color:#cfe6e4;font-family:system-ui;line-height:1.3">📱</div>',
+        unsafe_allow_html=True,
+    )
 
 try:
     if os.path.exists(PRICES_FILE):
@@ -652,7 +715,7 @@ with st.sidebar:
             return "#22c55e"
         if secs < 3600:
             return "#eab308"
-        return "#ef4444"
+        return "#ff4b4b"
 
     def _rel(secs):
         if secs is None:
@@ -738,6 +801,8 @@ except FileNotFoundError:
     st.error("Файл wallets.txt не найден!")
     wallets = []
 
+wallets = list(wallets)
+
 data = []
 total_tx = 0
 gas_sol = 0.0
@@ -756,10 +821,16 @@ if wallets:
     skr_price = st.session_state.get("cached_skr_price")
 
     if refresh_mode == "full":
-        price = get_sol_price()
-        skr_price = get_skr_price()
-        st.session_state.cached_sol_price = price
-        st.session_state.cached_skr_price = skr_price
+        _now_ts = time.time()
+        if st.session_state.get("_last_price_fetch", 0) < _now_ts - 300:
+            price = get_sol_price()
+            skr_price = get_skr_price()
+            st.session_state.cached_sol_price = price
+            st.session_state.cached_skr_price = skr_price
+            st.session_state._last_price_fetch = _now_ts
+        else:
+            price = st.session_state.cached_sol_price
+            skr_price = st.session_state.cached_skr_price
         try:
             os.makedirs(os.path.dirname(PRICES_FILE), exist_ok=True)
             with open(PRICES_FILE, "w") as f:
@@ -775,27 +846,39 @@ if wallets:
             if p:
                 prev_totals[addr] = p.get("prev_total", p.get("SKR", 0) + p.get("stake_skr", 0))
         with st.spinner('📡 Обновление всех данных и их кеширование...'):
-            with ThreadPoolExecutor(max_workers=random.randint(1, 4)) as executor:
-                futures = {executor.submit(get_data, addr, _ua_for_wallet(addr)): (i, addr) for i, addr in enumerate(wallets)}
+            batch_size = random.randint(2, 7)
+            wallet_items = list(enumerate(wallets))
+            random.shuffle(wallet_items)
+            chunks = [wallet_items[i:i+batch_size] for i in range(0, len(wallet_items), batch_size)]
+            completed = 0
+            for chunk_idx, chunk in enumerate(chunks):
+                print(f"  📦 Чанк {chunk_idx+1}/{len(chunks)} — {len(chunk)} кошельков", file=sys.stderr)
+                with ThreadPoolExecutor(max_workers=random.randint(1, min(4, len(chunk)))) as executor:
+                    futures = {executor.submit(get_data, addr, _ua_for_wallet(addr)): (idx, addr) for idx, addr in chunk}
 
-                completed = 0
-                for future in as_completed(futures):
-                    completed += 1
-                    idx, addr = futures[future]
-                    progress_text.text(f'Обработка кошелька {completed} из {len(wallets)}...')
-                    progress_bar.progress(int(completed / len(wallets) * 100))
+                    for future in as_completed(futures):
+                        completed += 1
+                        idx, addr = futures[future]
+                        progress_text.text(f'Обработка кошелька {completed} из {len(wallets)}...')
+                        progress_bar.progress(int(completed / len(wallets) * 100))
 
-                    s, k, ss, skr_staked, rss, t = future.result()
-                    data.append({
-                        "wallet": addr,
-                        "device": f"{idx+1:02d}",
-                        "SOL": s,
-                        "SKR": k,
-                        "stake_skr": round(skr_staked, 2),
-                        "stake_sol": ss,
-                        "txs": t,
-                        "raw_stake_shares": rss,
-                    })
+                        s, k, ss, skr_staked, rss, t = future.result()
+                        data.append({
+                            "wallet": addr,
+                            "device": f"{idx+1:02d}",
+                            "SOL": s,
+                            "SKR": k,
+                            "stake_skr": round(skr_staked, 2),
+                            "stake_sol": ss,
+                            "txs": t,
+                            "raw_stake_shares": rss,
+                        })
+
+                if chunk_idx < len(chunks) - 1:
+                    pause = random.uniform(1.0, 5.0)
+                    print(f"  💤 Пауза {pause:.1f}s...", file=sys.stderr)
+                    time.sleep(pause)
+                    _maybe_dummy_rpc()
 
         saved_data = load_data()
         for item in data:
@@ -813,10 +896,16 @@ if wallets:
         st.session_state.last_full = _now().strftime("%Y-%m-%d %H:%M")
         st.session_state.last_fast = st.session_state.last_full
     elif refresh_mode == "fast":
-        price = get_sol_price()
-        skr_price = get_skr_price()
-        st.session_state.cached_sol_price = price
-        st.session_state.cached_skr_price = skr_price
+        _now_ts = time.time()
+        if st.session_state.get("_last_price_fetch", 0) < _now_ts - 300:
+            price = get_sol_price()
+            skr_price = get_skr_price()
+            st.session_state.cached_sol_price = price
+            st.session_state.cached_skr_price = skr_price
+            st.session_state._last_price_fetch = _now_ts
+        else:
+            price = st.session_state.cached_sol_price
+            skr_price = st.session_state.cached_skr_price
         try:
             os.makedirs(os.path.dirname(PRICES_FILE), exist_ok=True)
             with open(PRICES_FILE, "w") as f:
@@ -828,28 +917,40 @@ if wallets:
             st.stop()
         st.caption("🔄 Режим быстрого обновления (только транзакции)")
         with st.spinner('Проверка транзакций...'):
-            with ThreadPoolExecutor(max_workers=random.randint(1, 4)) as executor:
-                futures = {executor.submit(get_txs_only, addr, _ua_for_wallet(addr)): (i, addr) for i, addr in enumerate(wallets)}
+            batch_size = random.randint(2, 7)
+            wallet_items = list(enumerate(wallets))
+            random.shuffle(wallet_items)
+            chunks = [wallet_items[i:i+batch_size] for i in range(0, len(wallet_items), batch_size)]
+            completed = 0
+            for chunk_idx, chunk in enumerate(chunks):
+                print(f"  📦 Чанк {chunk_idx+1}/{len(chunks)} — {len(chunk)} кошельков", file=sys.stderr)
+                with ThreadPoolExecutor(max_workers=random.randint(1, min(4, len(chunk)))) as executor:
+                    futures = {executor.submit(get_txs_only, addr, _ua_for_wallet(addr)): (idx, addr) for idx, addr in chunk}
 
-                completed = 0
-                for future in as_completed(futures):
-                    completed += 1
-                    idx, addr = futures[future]
-                    progress_text.text(f'Проверка {completed} из {len(wallets)}...')
-                    progress_bar.progress(int(completed / len(wallets) * 100))
+                    for future in as_completed(futures):
+                        completed += 1
+                        idx, addr = futures[future]
+                        progress_text.text(f'Проверка {completed} из {len(wallets)}...')
+                        progress_bar.progress(int(completed / len(wallets) * 100))
 
-                    t = future.result()
-                    saved = saved_data.get(addr, {})
-                    data.append({
-                        "wallet": addr,
-                        "device": f"{idx+1:02d}",
-                        "SOL": saved.get("SOL", 0),
-                        "SKR": saved.get("SKR", 0),
-                        "stake_skr": saved.get("stake_skr", 0),
-                        "stake_sol": saved.get("stake_sol", 0),
-                        "txs": t,
-                        "raw_stake_shares": saved.get("raw_stake_shares", 0),
-                    })
+                        t = future.result()
+                        saved = saved_data.get(addr, {})
+                        data.append({
+                            "wallet": addr,
+                            "device": f"{idx+1:02d}",
+                            "SOL": saved.get("SOL", 0),
+                            "SKR": saved.get("SKR", 0),
+                            "stake_skr": saved.get("stake_skr", 0),
+                            "stake_sol": saved.get("stake_sol", 0),
+                            "txs": t,
+                            "raw_stake_shares": saved.get("raw_stake_shares", 0),
+                        })
+
+                if chunk_idx < len(chunks) - 1:
+                    pause = random.uniform(1.0, 5.0)
+                    print(f"  💤 Пауза {pause:.1f}s...", file=sys.stderr)
+                    time.sleep(pause)
+                    _maybe_dummy_rpc()
 
         for item in data:
             if item["wallet"] in saved_data:
@@ -939,7 +1040,7 @@ for i, item in enumerate(data):
                 if dv > 0:
                     cs = "background-color: #90ee90; color: black"
                 elif dv < 0:
-                    cs = "background-color: #ff6b6b; color: black"
+                    cs = "background-color: #ff4b4b; color: white"
             except (ValueError, TypeError):
                 pass
         blur_class = ' class="blurcol"' if h not in ("device", "txs") else ""
@@ -1097,18 +1198,11 @@ with st.sidebar:
     raw_first = data[0].get("raw_stake_shares", 0) if data else 0
     if raw_first > 0:
         with st.expander("🔧 Калибровка множителя стейкинга", expanded=False):
-            st.caption("Введи точную сумму застейканных SKR для первого кошелька — множитель пересчитается, сохранится в .env и запустит полное обновление")
+            st.caption("Введи точную сумму застейканных SKR для первого кошелька — множитель пересчитается и сохранится")
             default_stake = data[0].get("stake_skr", 0) if data else 0.0
             actual_val = st.number_input("SKR в стейкинге (01)", value=float(default_stake), step=1.0, key="cal_actual")
             _skr_int = int(SKR_DIVISOR)
-            st.markdown(
-                f'<p style="font-size:0.85rem;color:#6b7280;margin-bottom:8px">'
-                f'<a href="https://share.streamlit.io" '
-                f'style="color:#3a9e91" target="_blank">Streamlit Cloud → Settings → Secrets</a>'
-                f'</p>',
-                unsafe_allow_html=True,
-            )
-            st.code(f"skr_divisor = {_skr_int}", language="toml")
+            st.caption(f"Текущий множитель: {_skr_int:,}")
             if actual_val > 0:
                 new_div = raw_first / actual_val
                 cal_col1, cal_col2 = st.columns([1, 1])
@@ -1116,10 +1210,6 @@ with st.sidebar:
                         st.caption(f"Новый множитель: {new_div:,.0f}")
                 with cal_col2:
                     if st.button("💾 Сохранить множитель", width='stretch'):
-                        try:
-                            st.query_params["skr_divisor"] = str(int(new_div))
-                        except Exception as e:
-                            print(f"⚠️ [set query params skr_divisor]: {e}", file=sys.stderr)
                         try:
                             _app_path = os.path.join(BASE_DIR, "app.py")
                             with open(_app_path, "r") as f:
@@ -1129,8 +1219,9 @@ with st.sidebar:
                                 f.write(_app_code)
                         except Exception as e:
                             print(f"⚠️ [save SKR_DIVISOR to app.py]: {e}", file=sys.stderr)
-                        st.toast(f"✅ Множитель: {int(new_div)}. Чтобы работал на всех устройствах, добавь `skr_divisor = {int(new_div)}` в Secrets на share.streamlit.io")
-                        st.session_state.refresh_mode = "skr"
+                        SKR_DIVISOR = new_div
+                        st.toast(f"✅ Множитель: {int(new_div)}")
+                        st.session_state.refresh_mode = "full"
                         st.rerun()
 
     with st.expander("ℹ️ Легенда", expanded=False):
@@ -1241,4 +1332,4 @@ with st.sidebar:
             st.rerun()
 
     st.markdown("---")
-    st.caption("📦 Версия 4.1.0")
+    st.caption("📦 Версия 4.2.0")
