@@ -209,6 +209,9 @@ PRICES_FILE = os.path.join(BASE_DIR, "data", "prices.json")
 _price_ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
 _DEF_UA = _price_ua
 
+_ICON_SOL = '<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNCIgaGVpZ2h0PSIxNCIgdmlld0JveD0iMCAwIDY0IDY0Ij48Y2lyY2xlIGN4PSIzMiIgY3k9IjMyIiByPSIzMiIgZmlsbD0iIzAwMCIvPjxwYXRoIGQ9Ik01MS4zIDQxLjFsLTYuNSA2LjhhMS42IDEuNiAwIDAgMS0xLjEuNUgxMi44YS44LjggMCAwIDEtLjctLjQuOC44IDAgMCAxIDAtLjhsNi42LTYuOWExLjYgMS42IDAgMCAxIDEuMS0uNUg1MC44YS44LjggMCAwIDEgLjcgMS4yem0tNi41LTEzLjdhMS42IDEuNiAwIDAgMC0xLjEtLjVIMTIuOGEuOC44IDAgMCAwLS43IDEuMmw2LjYgNi45YTEuNiAxLjYgMCAwIDAgMS4xLjVINTAuOGEuOC44IDAgMCAwIC43LTEuMnpNMTIuOCAyMi41aDMwLjlhMS42IDEuNiAwIDAgMCAxLjEtLjVsNi41LTYuOGEuOC44IDAgMCAwLS43LTEuMkgxOS44YTEuNiAxLjYgMCAwIDAtMS4xLjVsLTYuNSA2LjhhLjguOCAwIDAgMCAuNiAxLjJ6IiBmaWxsPSJ1cmwoI3NnKSIvPjxkZWZzPjxsaW5lYXJHcmFkaWVudCBpZD0ic2ciIHgxPSIxNS4zIiB5MT0iNDkuMyIgeDI9IjQ2LjgiIHkyPSIxMi44Ij48c3RvcCBvZmZzZXQ9IjglMjUiIHN0b3AtY29sb3I9IiM5OTQ1RkYiLz48c3RvcCBvZmZzZXQ9IjMwJTI1IiBzdG9wLWNvbG9yPSIjODc1MkYzIi8+PHN0b3Agb2Zmc2V0PSI1MCUyNSIgc3RvcC1jb2xvcj0iIzU0OTdENSIvPjxzdG9wIG9mZnNldD0iNjAlMjUiIHN0b3AtY29sb3I9IiM0M0I0Q0EiLz48c3RvcCBvZmZzZXQ9IjcyJTI1IiBzdG9wLWNvbG9yPSIjMjhFMEI5Ii8+PHN0b3Agb2Zmc2V0PSI5NyUyNSIgc3RvcC1jb2xvcj0iIzE5RkI5QiIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjwvc3ZnPg==" width="14" height="14" style="vertical-align:middle">'
+_ICON_SKR = '<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNCIgaGVpZ2h0PSIxNCIgdmlld0JveD0iMCAwIDI1NiAyNTYiPjxjaXJjbGUgY3g9IjEyOCIgY3k9IjEyOCIgcj0iMTI4IiBmaWxsPSIjMDAwIi8+PHBhdGggZD0iTTk1LjEgNjMuNWMuOS0uOCAxLjgtMS42IDIuOC0yLjNDMTA0LjggNTYuMiAxMTQuMiA1My44IDEyNiA1My44YzExLjkgMCAyMS44IDMuMSAyOS43IDkuMyA2LjkgNS41IDExLjMgMTIuNSAxMy4yIDIxLjFoMzIuN2MtLjktMTAuNi00LjMtMjAuMS0xMC4xLTI4LjVDMTg1IDQ2LjEgMTc2IDM4LjggMTY0LjcgMzMuNVMxNDAgMjUuNiAxMjYuMSAyNS42Yy0xMS4zIDAtMjEuNiAxLjctMzEgNXYzM3ptNjkgMTI5Yy0uMi4zLTIgMS41LTMuMSAyLjMtNy42IDUuMi0xNy41IDcuOC0yOS44IDcuOC0xNCAwLTI1LjUtMy43LTM0LjMtMTEtOC02LjYtMTIuOC0xNS0xMy4zLTI1LjRsLTMyLjUtLjNjLjggMTEuOSA0LjMgMjIuNSAxMC41IDMyIDYuNyAxMC4zIDE2LjEgMTguMyAyOC4yIDI0IDEyLjEgNS42IDI2LjEgOC40IDQyLjEgOC40IDEyLjIgMCAyMy4zLTEuOSAzMy4yLTUuNnYtMzIuM3ptLTc5LTYwLjZjOS4yIDMuOSAyMC4xIDYuOCAzMi42IDguOWwxLjQuM2MxMy4yIDIuNSAyMy4zIDQuNyAzMC4yIDYuNiA3IDEuOSAxMi41IDQuOSAxNi43IDguOSA0LjIgNCA2LjMgOS40IDYuMyAxNi4xcy0xLjkgMTIuNC01LjcgMTYuOWgzNS4zYzIuNS02LjMgMy43LTEzLjIgMy43LTIwLjQgMC0xMi41LTMtMjIuNS05LjEtMzAuMi02LTcuNy0xMy44LTEzLjMtMjMuMi0xNy05LjQtMy42LTIwLjYtNi42LTMzLjctOC45aC0uM2MtMTIuNi0yLjMtMjIuNC00LjUtMjkuMy02LjYtNi45LTIuMS0xMi41LTUtMTYuNi04LjYtNC4xLTMuNi02LjItOC44LTYuMi0xNS41IDAtNi43IDEuNy0xMS44IDUtMTYuMUg1Ny4zYy0yIDUuNy0zIDExLjktMyAxOC40IDAgMTIuMyAyLjggMjIuMiA4LjUgMjkuOSA1LjYgNy42IDEzLjEgMTMuNCAyMi4zIDE3LjJ6IiBmaWxsPSIjZmZmIi8+PC9zdmc+" width="14" height="14" style="vertical-align:middle">'
+
 UA_POOL = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36 OPR/117.0.0.0",
     "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
@@ -1149,10 +1152,18 @@ with st.sidebar:
         st.metric("🧂 Всего SOL", f"{round(total_sol, 3)}", help=sol_usd_help)
         st.markdown(f"<div style='line-height:1.2;margin-top:-12px'><span{sol_liq_title}>┣ Ликв: {round(liquid_sol, 3)}</span><br><span{sol_stk_title}>┗ Стейк: {round(staked_sol, 3)}</span></div>", unsafe_allow_html=True)
 
-    total_delta = sum(d.get("delta_skr", 0) for d in data)
+        total_delta = sum(d.get("delta_skr", 0) for d in data)
     if total_delta:
         st.caption("")
         st.metric("📈 Прирост SKR", f"{total_delta:+.1f}")
+
+    price_parts = []
+    if price_val:
+        price_parts.append(f"{_ICON_SOL} ${price_val:.2f}")
+    if skr_price and skr_price > 0:
+        price_parts.append(f"{_ICON_SKR} ${skr_price:.6f}")
+    if price_parts:
+        st.markdown(f"<div style='text-align:center;font-size:0.75rem;opacity:0.6;margin:6px 0 -4px 0'>{' &nbsp;·&nbsp; '.join(price_parts)}</div>", unsafe_allow_html=True)
 
     st.markdown("---")
     with st.expander("🔐 Управление кошельками", expanded=False):
